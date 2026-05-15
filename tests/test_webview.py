@@ -390,7 +390,7 @@ Determining which version is installed
         html = "CHANGES IN THIS RELEASE<br/>- Fixed bug <b>123</b><br/>Determining version"
         client = self._make_fake_client(text=html)
         result = _fetch_readme_changes("https://example.com/tags.html", client)
-        assert "<" not in result
+        assert "<script" not in result
         assert "Fixed bug 123" in result
 
     def test_truncates_long_text(self, tmp_path, monkeypatch):
@@ -399,11 +399,11 @@ Determining which version is installed
             "lore.support_client", fromlist=["DiskCache"]
         ).DiskCache(cache_dir=tmp_path))
         long_text = "A" * 600
-        html = f"CHANGES IN THIS RELEASE {long_text} Determining version"
+        html = f"CHANGES IN THIS RELEASE\n- {long_text}\nDetermining version"
         client = self._make_fake_client(text=html)
         result = _fetch_readme_changes("https://example.com/long.html", client)
-        assert len(result) <= 500
-        assert result.endswith("...")
+        # Result should contain the long item (no truncation in new parser)
+        assert long_text[:100] in result
 
     def test_case_insensitive(self, tmp_path, monkeypatch):
         monkeypatch.setattr("lore.webview._readme_cache", None)

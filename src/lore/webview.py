@@ -96,7 +96,7 @@ def _fetch_readme_changes(readme_url: str, client: Any) -> str:
     """Fetch a readme HTML page and extract 'Changes in this release'.
 
     Uses the provided httpx client for the request. Results are cached
-    with a 24h TTL. Returns extracted text or empty string on failure.
+    with a 24h TTL. Returns formatted HTML string or empty string on failure.
     """
     cache = _get_readme_cache()
     cache_key = f"readme:{readme_url}"
@@ -109,37 +109,210 @@ def _fetch_readme_changes(readme_url: str, client: Any) -> str:
             cache.set(cache_key, "")
             return ""
         text = resp.text
-        # Extract "Changes in this release" section
-        pattern = re.compile(
-            r"CHANGES\s+IN\s+THIS\s+RELEASE(.*?)(?:"
-            r"\n[A-Z]{2,}[A-Z\s]*\n|"  # next all-caps header
-            r"Determining|"  # installation section
-            r"<[Hh][1-6]|"  # HTML heading
-            r"</body|"  # end of page
-            r"$)",
-            re.DOTALL | re.IGNORECASE,
-        )
-        match = pattern.search(text)
-        if match:
-            changes = match.group(1).strip()
-            # Clean up HTML tags
-            changes = re.sub(r"<[^>]+>", "", changes)
-            changes = re.sub(r"&nbsp;", " ", changes)
-            changes = re.sub(r"&amp;", "&", changes)
-            changes = re.sub(r"&lt;", "<", changes)
-            changes = re.sub(r"&gt;", ">", changes)
-            # Collapse whitespace
-            changes = re.sub(r"\s+", " ", changes).strip()
-            # Truncate if very long
-            if len(changes) > 500:
-                changes = changes[:497] + "..."
-            cache.set(cache_key, changes)
-            return changes
-        cache.set(cache_key, "")
-        return ""
+        # Extract "Changes in this release" section (line-aware)
+        html = _extract_changes_section(text)
+        cache.set(cache_key, html)
+        return html
     except Exception:
         cache.set(cache_key, "")
         return ""
+
+
+def _extract_changes_section(html_text: str) -> str:
+    """Extract the 'Changes in this release' section from Lenovo readme HTML.
+
+    The readme uses accordion buttons (<button class="collapsible">) as section
+    headers. We extract content between "Changes in This Release" and the
+    next collapsible button.
+
+    Falls back to plain-text extraction for readmes without the accordion pattern.
+
+    Returns formatted HTML with bullet points, or empty string.
+    """
+    # Strategy 1: Find accordion "Changes in This Release" collapsible button
+    changes_pattern = re.compile(
+        r'<button[^>]*class="collapsible"[^>]*>\s*'
+        r'Changes\s+in\s+(?:This|the)\s+Release\s*<',
+        re.DOTALL | re.IGNORECASE,
+    )
+    changes_match = changes_pattern.search(html_text)
+
+    if changes_match:
+        # Find the card-body content div after this button
+        after_button = html_text[changes_match.end():]
+        card_pattern = re.compile(
+            r'<div\s+class="card\s+card-body"[^>]*>(.*?)</div>\s*</div>',
+            re.DOTALL,
+        )
+        card_match = card_pattern.search(after_button)
+        if card_match:
+            content_html = card_match.group(1)
+            lines = _html_to_lines(content_html)
+            # Remove leading "CHANGES IN THIS RELEASE" (redundant with our heading)
+            if lines and re.match(r'CHANGES\s+IN\s+THIS\s+RELEASE', lines[0], re.IGNORECASE):
+                lines = lines[1:]
+            if lines:
+                return _parse_changes_lines(lines)
+
+    # Strategy 2: Fallback — plain text search for CHANGES IN THIS RELEASE
+    # For simpler HTML or plain text readmes
+    lines = _html_to_lines(html_text)
+    start_idx = None
+    for i, line in enumerate(lines):
+        if re.search(r'CHANGES\s+IN\s+THIS\s+RELEASE', line, re.IGNORECASE):
+            start_idx = i + 1  # skip the header line
+            break
+
+    if start_idx is None:
+        return ""
+
+    # Collect lines until a stop section
+    stop_patterns = [
+        re.compile(r'^\s*(Determining|Installing|Installation|Manual Install|Unattended)\b', re.IGNORECASE),
+        re.compile(r'^\s*\d+\.\s+(Hold|Select|Press|Make|Open|Locate|Double|Type|Click|Follow)\b', re.IGNORECASE),
+    ]
+
+    section_lines = []
+    for i in range(start_idx, len(lines)):
+        line = lines[i].strip()
+        if not line:
+            continue
+        stopped = False
+        for pat in stop_patterns:
+            if pat.match(line):
+                stopped = True
+                break
+        if stopped:
+            break
+        section_lines.append(line)
+
+    if not section_lines:
+        return ""
+
+    return _parse_changes_lines(section_lines)
+
+
+def _html_to_lines(html_text: str) -> list[str]:
+    """Convert HTML to a list of text lines, preserving structure."""
+    text = re.sub(r'</p>', '\n', html_text)
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r'&nbsp;', ' ', text)
+    text = re.sub(r'&amp;', '&', text)
+    text = re.sub(r'&lt;', '<', text)
+    text = re.sub(r'&gt;', '>', text)
+    lines = [line.strip() for line in text.splitlines()]
+    return [l for l in lines if l]
+
+
+def _parse_changes_lines(lines: list[str]) -> str:
+    """Parse lines into HTML with sections and bullet points."""
+    sections = []  # list of (title, [items])
+    current_title = None
+    current_items = []
+
+    for line in lines:
+        # Check for section header like [Important updates]
+        bracket_match = re.match(r"^\[([^\]]+)\]\s*$", line)
+        if bracket_match:
+            # Save previous section
+            if current_items:
+                sections.append((current_title, current_items))
+                current_items = []
+            current_title = bracket_match.group(1)
+            continue
+
+        # Check for bullet item starting with '- '
+        bullet_match = re.match(r"^-\s+(.+)$", line)
+        if bullet_match:
+            current_items.append(bullet_match.group(1).strip())
+            continue
+
+        # Other text — could be a standalone line
+        # Check for lines like "Nothing." that are content
+        if line and not line.startswith("["):
+            # Could be a note or continuation
+            current_items.append(line)
+
+    # Don't forget last section
+    if current_items:
+        sections.append((current_title, current_items))
+
+    if not sections:
+        return ""
+
+    # Build HTML
+    html_parts = []
+    for title, items in sections:
+        if title:
+            html_parts.append(f"<strong>{_esc_html(title)}</strong>")
+        lis = "\n".join(f"<li>{_esc_html(it)}</li>" for it in items)
+        html_parts.append(f"<ul>\n{lis}\n</ul>")
+
+    return "\n".join(html_parts)
+
+
+def _format_release_notes_html(raw: str) -> str:
+    """Convert raw release notes text into formatted HTML with bullet points.
+
+    Parses sections like [Important updates], [New functions], [Problem fixes]
+    and formats items starting with '- ' as <li> elements.
+    """
+    if not raw:
+        return ""
+
+    # Split by bracketed section headers like [Important updates]
+    # Pattern: text before first bracket, then alternating [title] content pairs
+    section_pattern = re.compile(r"\[([^\]]+)\]")
+    splits = section_pattern.split(raw)
+    # splits = [pre_text, section1_title, section1_content, section2_title, section2_content, ...]
+
+    html_parts = []
+
+    # Process pre-section content (items before first [Section])
+    if splits and not raw.startswith("["):
+        pre = splits[0].strip()
+        if pre:
+            html_parts.append(_format_items_as_list(pre))
+        splits = splits[1:]
+
+    # Process section-title + content pairs
+    i = 0
+    while i < len(splits) - 1:
+        title = splits[i].strip()
+        content = splits[i + 1].strip() if i + 1 < len(splits) else ""
+        if title:
+            html_parts.append(f"<strong>{_esc_html(title)}</strong>")
+        if content:
+            html_parts.append(_format_items_as_list(content))
+        i += 2
+
+    # Remaining text after last section
+    if i < len(splits):
+        remaining = splits[i].strip()
+        if remaining:
+            html_parts.append(_format_items_as_list(remaining))
+
+    result = "\n".join(html_parts)
+    return result if result else _esc_html(raw)
+
+
+def _format_items_as_list(text: str) -> str:
+    """Format text with '- ' items as an HTML <ul> list."""
+    if not text:
+        return ""
+    # Split on '- ' bullet points
+    items = re.split(r"\s*-\s+", text)
+    items = [it.strip() for it in items if it.strip()]
+    if not items:
+        return ""
+    lis = "\n".join(f"<li>{_esc_html(it)}</li>" for it in items)
+    return f"<ul>\n{lis}\n</ul>"
+
+
+def _esc_html(text: str) -> str:
+    """Escape HTML special characters."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _prepare_webview_data(
@@ -622,16 +795,31 @@ body {
   font-size: 13px;
   line-height: 1.5;
 }
-.driver-card-right .summary-label {
+.driver-card-right .changes-label {
   font-weight: 600;
   color: var(--text);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.driver-card-right .changes-text {
+  color: var(--text-muted);
+}
+.driver-card-right .changes-text strong {
+  color: var(--text);
+  font-size: 12px;
+  display: block;
+  margin-top: 6px;
   margin-bottom: 2px;
 }
-.driver-card-right .summary-text {
-  color: var(--text-muted);
+.driver-card-right .changes-text ul {
+  margin: 0;
+  padding-left: 16px;
+  list-style-type: disc;
+}
+.driver-card-right .changes-text li {
+  margin-bottom: 2px;
 }
 .driver-card-header {
   display: flex;
@@ -1198,27 +1386,27 @@ footer {
 
     if (d.releaseNotes) {
       var rnLabel = document.createElement("div");
-      rnLabel.className = "summary-label";
+      rnLabel.className = "changes-label";
       rnLabel.textContent = "Changes in this release";
       rightCol.appendChild(rnLabel);
 
       var rnText = document.createElement("div");
-      rnText.className = "summary-text";
-      rnText.textContent = d.releaseNotes;
+      rnText.className = "changes-text";
+      rnText.innerHTML = d.releaseNotes;
       rightCol.appendChild(rnText);
     } else if (d.summary) {
       var summaryLabel = document.createElement("div");
-      summaryLabel.className = "summary-label";
+      summaryLabel.className = "changes-label";
       summaryLabel.textContent = "Summary";
       rightCol.appendChild(summaryLabel);
 
       var summaryText = document.createElement("div");
-      summaryText.className = "summary-text";
+      summaryText.className = "changes-text";
       summaryText.textContent = d.summary;
       rightCol.appendChild(summaryText);
     } else {
       var noSummary = document.createElement("div");
-      noSummary.className = "summary-text";
+      noSummary.className = "changes-text";
       noSummary.style.fontStyle = "italic";
       noSummary.textContent = "No description available";
       rightCol.appendChild(noSummary);
