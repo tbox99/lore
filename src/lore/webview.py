@@ -201,71 +201,85 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
 <title>LORE — Drivers</title>
 <style>
 :root {
-  --bg: #ffffff;
-  --bg-card: #f6f8fa;
-  --bg-card-hover: #f0f3f6;
-  --text: #1f2328;
-  --text-muted: #656d76;
-  --text-link: #0969da;
-  --border: #d0d7de;
-  --border-card: #d8dee4;
-  --badge-critical-bg: #ffebe9;
-  --badge-critical-text: #82071e;
-  --badge-critical-border: #ff818266;
-  --badge-recommended-bg: #fff8c5;
-  --badge-recommended-text: #7a5e00;
-  --badge-recommended-border: #e3b34166;
-  --badge-optional-bg: #eef1f4;
-  --badge-optional-text: #57606a;
-  --badge-optional-border: #d0d7de66;
-  --shadow-hover: 0 2px 8px rgba(0,0,0,0.1);
-  --header-bg: #f6f8fa;
-  --filter-bg: #ffffff;
-  --btn-active-bg: #0969da;
-  --btn-active-text: #ffffff;
-  --btn-bg: #f6f8fa;
-  --btn-text: #1f2328;
-  --btn-border: #d0d7de;
-  --expand-bg: #f6f8fa;
-  --footer-border: #d0d7de;
+  --lenovo-red: #E2231A;
+  --lenovo-dark-red: #B91C1C;
+  --lenovo-yellow: #FFB900;
+  --lenovo-gray: #5A5A5A;
+  --dark-header: #1A1A1A;
+  --bg: #F5F5F5;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FAFAFA;
+  --text: #333333;
+  --text-muted: #666666;
+  --text-link: #E2231A;
+  --border: #E0E0E0;
+  --border-card: #E0E0E0;
+  --badge-critical-bg: #E2231A;
+  --badge-critical-text: #FFFFFF;
+  --badge-critical-border: #E2231A;
+  --badge-recommended-bg: #FFB900;
+  --badge-recommended-text: #333333;
+  --badge-recommended-border: #FFB900;
+  --badge-optional-bg: #5A5A5A;
+  --badge-optional-text: #FFFFFF;
+  --badge-optional-border: #5A5A5A;
+  --shadow-hover: 0 2px 6px rgba(0,0,0,0.1);
+  --filter-bg: #FFFFFF;
+  --btn-active-bg: #E2231A;
+  --btn-active-text: #FFFFFF;
+  --btn-bg: #FFFFFF;
+  --btn-text: #333333;
+  --btn-border: #CCCCCC;
+  --expand-bg: #F9F9F9;
+  --footer-bg: #1A1A1A;
+  --footer-text: #999999;
+  --subheader-bg: #222222;
+  --subheader-text: #CCCCCC;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d1117;
-    --bg-card: #161b22;
-    --bg-card-hover: #1c2129;
-    --text: #e6edf3;
-    --text-muted: #8b949e;
-    --text-link: #58a6ff;
-    --border: #30363d;
-    --border-card: #30363d;
-    --badge-critical-bg: #490202;
-    --badge-critical-text: #ff7b72;
-    --badge-critical-border: #f8514966;
-    --badge-recommended-bg: #3b2e00;
-    --badge-recommended-text: #e3b341;
-    --badge-recommended-border: #e3b34166;
-    --badge-optional-bg: #21262d;
-    --badge-optional-text: #8b949e;
-    --badge-optional-border: #30363d66;
-    --shadow-hover: 0 2px 8px rgba(0,0,0,0.4);
-    --header-bg: #161b22;
-    --filter-bg: #0d1117;
-    --btn-active-bg: #58a6ff;
-    --btn-active-text: #0d1117;
-    --btn-bg: #21262d;
-    --btn-text: #e6edf3;
-    --btn-border: #30363d;
-    --expand-bg: #0d1117;
-    --footer-border: #30363d;
+    --lenovo-red: #E2231A;
+    --lenovo-dark-red: #B91C1C;
+    --lenovo-yellow: #FFB900;
+    --lenovo-gray: #5A5A5A;
+    --dark-header: #1A1A1A;
+    --bg: #0D0D0D;
+    --bg-card: #1A1A1A;
+    --bg-card-hover: #222222;
+    --text: #E5E5E5;
+    --text-muted: #999999;
+    --text-link: #E2231A;
+    --border: #333333;
+    --border-card: #333333;
+    --badge-critical-bg: #E2231A;
+    --badge-critical-text: #FFFFFF;
+    --badge-critical-border: #E2231A;
+    --badge-recommended-bg: #FFB900;
+    --badge-recommended-text: #0D0D0D;
+    --badge-recommended-border: #FFB900;
+    --badge-optional-bg: #5A5A5A;
+    --badge-optional-text: #FFFFFF;
+    --badge-optional-border: #5A5A5A;
+    --shadow-hover: 0 2px 6px rgba(0,0,0,0.3);
+    --filter-bg: #1A1A1A;
+    --btn-active-bg: #E2231A;
+    --btn-active-text: #FFFFFF;
+    --btn-bg: #1A1A1A;
+    --btn-text: #E5E5E5;
+    --btn-border: #444444;
+    --expand-bg: #111111;
+    --footer-bg: #1A1A1A;
+    --footer-text: #666666;
+    --subheader-bg: #1A1A1A;
+    --subheader-text: #999999;
   }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Helvetica, Arial, sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text);
@@ -279,28 +293,59 @@ body {
   padding: 0 16px;
 }
 
-/* ---- Header ---- */
-header {
-  background: var(--header-bg);
-  border-bottom: 1px solid var(--border);
-  padding: 20px 0;
-  margin-bottom: 16px;
+/* ---- Top Bar ---- */
+.top-bar {
+  background: var(--dark-header);
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
-header h1 {
-  font-size: 20px;
+.top-bar .logo {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #E2231A;
+  font-style: italic;
+  user-select: none;
+}
+.top-bar .logo .logo-e {
+  display: inline-block;
+  transform: rotate(-4deg);
+  transform-origin: center center;
+}
+.top-bar .lore-title {
+  font-size: 16px;
   font-weight: 600;
-  margin-bottom: 4px;
+  color: #FFFFFF;
+  letter-spacing: 2px;
 }
-header .subtitle {
-  color: var(--text-muted);
-  font-size: 14px;
-}
-header .subtitle .serial {
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  background: var(--badge-optional-bg);
-  padding: 1px 6px;
-  border-radius: 4px;
+
+/* ---- Sub-header ---- */
+.sub-header {
+  background: var(--subheader-bg);
+  padding: 10px 24px;
+  color: var(--subheader-text);
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sub-header .serial {
+  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  background: rgba(255,255,255,0.1);
+  color: #E5E5E5;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.sub-header .product-name {
+  color: #CCCCCC;
 }
 
 /* ---- Filter bar ---- */
@@ -308,47 +353,59 @@ header .subtitle .serial {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 16px;
+  padding: 12px 16px;
+  margin: 16px 0;
+  background: var(--filter-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   flex-wrap: wrap;
 }
 .filter-bar input[type="text"] {
   flex: 1;
   min-width: 200px;
-  padding: 6px 10px;
+  padding: 7px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--filter-bg);
+  border-radius: 4px;
+  background: var(--bg);
   color: var(--text);
   font-size: 14px;
+  font-family: inherit;
   outline: none;
+  transition: border-color 0.15s ease;
 }
 .filter-bar input[type="text"]:focus {
-  border-color: var(--text-link);
-  box-shadow: 0 0 0 2px rgba(9,105,218,0.3);
+  border-color: var(--lenovo-red);
+  box-shadow: 0 0 0 2px rgba(226,35,26,0.15);
 }
 .filter-bar input[type="text"]::placeholder {
   color: var(--text-muted);
 }
 .filter-btn {
-  padding: 5px 12px;
+  padding: 6px 14px;
   border: 1px solid var(--btn-border);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--btn-bg);
   color: var(--btn-text);
   font-size: 13px;
+  font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s;
+  transition: all 0.15s ease;
 }
 .filter-btn:hover {
-  background: var(--bg-card-hover);
+  border-color: var(--lenovo-red);
+  color: var(--lenovo-red);
 }
 .filter-btn.active {
   background: var(--btn-active-bg);
   color: var(--btn-active-text);
   border-color: var(--btn-active-bg);
+}
+.filter-btn.active:hover {
+  background: var(--lenovo-dark-red);
+  border-color: var(--lenovo-dark-red);
+  color: #FFFFFF;
 }
 
 /* ---- Category section ---- */
@@ -357,10 +414,10 @@ header .subtitle .serial {
 }
 .category-header {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   padding-bottom: 6px;
-  border-bottom: 2px solid var(--border);
-  margin-bottom: 8px;
+  border-bottom: 2px solid var(--lenovo-red);
+  margin-bottom: 10px;
   color: var(--text);
 }
 .category-count {
@@ -374,15 +431,25 @@ header .subtitle .serial {
 .driver-card {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 12px 14px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   cursor: pointer;
-  transition: box-shadow 0.15s, background 0.15s;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+  border-left: 3px solid var(--border-card);
 }
 .driver-card:hover {
   box-shadow: var(--shadow-hover);
   background: var(--bg-card-hover);
+}
+.driver-card.priority-critical {
+  border-left-color: var(--lenovo-red);
+}
+.driver-card.priority-recommended {
+  border-left-color: var(--lenovo-yellow);
+}
+.driver-card.priority-optional {
+  border-left-color: var(--lenovo-gray);
 }
 .driver-card-header {
   display: flex;
@@ -412,7 +479,7 @@ header .subtitle .serial {
   font-size: 13px;
 }
 .driver-meta .version {
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 12px;
 }
 .driver-url-row {
@@ -428,7 +495,7 @@ header .subtitle .serial {
   text-decoration: none;
   word-break: break-all;
   font-size: 12px;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 .driver-url:hover {
   text-decoration: underline;
@@ -443,10 +510,11 @@ header .subtitle .serial {
   color: var(--text-muted);
   line-height: 1;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: all 0.15s ease;
 }
 .copy-btn:hover {
-  background: var(--bg-card-hover);
+  color: var(--lenovo-red);
+  border-color: var(--lenovo-red);
 }
 .copy-btn.copied {
   color: #1a7f37;
@@ -456,12 +524,13 @@ header .subtitle .serial {
 /* ---- Badge ---- */
 .badge {
   display: inline-block;
-  padding: 1px 8px;
-  border-radius: 12px;
+  padding: 2px 10px;
+  border-radius: 4px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   border: 1px solid;
   white-space: nowrap;
+  letter-spacing: 0.3px;
 }
 .badge-critical {
   background: var(--badge-critical-bg);
@@ -487,7 +556,7 @@ header .subtitle .serial {
   padding: 10px 12px;
   background: var(--expand-bg);
   border: 1px solid var(--border-card);
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 13px;
   color: var(--text-muted);
 }
@@ -509,12 +578,12 @@ header .subtitle .serial {
   width: 100px;
 }
 .driver-detail .sha256 {
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 11px;
   word-break: break-all;
 }
 .driver-detail .login-warning {
-  color: var(--badge-recommended-text);
+  color: var(--lenovo-yellow);
   font-style: italic;
   margin-top: 4px;
 }
@@ -522,14 +591,17 @@ header .subtitle .serial {
 /* ---- Footer ---- */
 footer {
   margin-top: 32px;
-  padding: 12px 0;
-  border-top: 1px solid var(--footer-border);
-  color: var(--text-muted);
+  padding: 14px 24px;
+  background: var(--footer-bg);
+  color: var(--footer-text);
   font-size: 13px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  margin-left: -16px;
+  margin-right: -16px;
 }
 .legend {
   display: flex;
@@ -553,24 +625,30 @@ footer {
 
 /* ---- Responsive ---- */
 @media (max-width: 600px) {
-  .filter-bar { flex-direction: column; align-items: stretch; }
+  .top-bar { padding: 0 12px; }
+  .top-bar .logo { font-size: 22px; }
+  .top-bar .lore-title { font-size: 13px; }
+  .sub-header { padding: 8px 12px; }
+  .filter-bar { flex-direction: column; align-items: stretch; padding: 10px 12px; }
   .filter-bar input[type="text"] { min-width: 0; }
   .driver-meta { margin-left: 0; }
   .driver-url-row { margin-left: 0; }
   .driver-detail { margin-left: 0; }
+  footer { margin-left: -12px; margin-right: -12px; padding: 12px; }
 }
 </style>
 </head>
 <body>
-<div class="container">
-  <header>
-    <h1>LORE — Lenovo Online Research & Equipment</h1>
-    <div class="subtitle">
-      Serial: <span class="serial" id="serial-display"></span>
-      &nbsp;·&nbsp; <span id="product-name"></span>
-    </div>
-  </header>
+<div class="top-bar">
+  <div class="logo">l<span class="logo-e">e</span>novo</div>
+  <div class="lore-title">LORE</div>
+</div>
+<div class="sub-header">
+  <span>Serial:</span> <span class="serial" id="serial-display"></span>
+  <span class="product-name" id="product-name"></span>
+</div>
 
+<div class="container">
   <div class="filter-bar">
     <input type="text" id="filter-input" placeholder="Filter drivers by title…">
     <button class="filter-btn active" data-priority="all">All</button>
@@ -631,6 +709,13 @@ footer {
     if (p === "critical") return "badge-critical";
     if (p === "recommended") return "badge-recommended";
     return "badge-optional";
+  }
+
+  function priorityCardClass(pri) {
+    var p = (pri || "").toLowerCase();
+    if (p === "critical") return "priority-critical";
+    if (p === "recommended") return "priority-recommended";
+    return "priority-optional";
   }
 
   function priorityDot(pri) {
@@ -714,7 +799,7 @@ footer {
 
   function createCard(d) {
     var card = document.createElement("div");
-    card.className = "driver-card";
+    card.className = "driver-card " + priorityCardClass(d.priority);
 
     var idx = DATA.drivers.indexOf(d);
     var isExpanded = !!expandedCards[idx];
