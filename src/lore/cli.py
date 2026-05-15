@@ -23,12 +23,27 @@ def _resolve_format(json_output: bool, plain: bool) -> str:
     return FormatMode.RICH
 
 
+def _can_run_tui(no_tui: bool = False) -> bool:
+    """Check if TUI mode is possible and desired."""
+    if no_tui:
+        return False
+    try:
+        import sys
+        if not sys.stdout.isatty():
+            return False
+        from lore.tui import LoreDriversApp  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 @click.group()
 @click.version_option(version=__version__, prog_name="lore")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--plain", is_flag=True, help="Plain text output (no color, no emoji)")
 @click.option("--no-color", is_flag=True, help="Disable colors")
 @click.option("--no-emoji", is_flag=True, help="Disable emoji")
+@click.option("--no-tui", is_flag=True, help="Disable interactive TUI, use static output")
 @click.option("--no-cache", is_flag=True, help="Bypass cache")
 @click.option("--refresh", is_flag=True, help="Force fresh API calls (implies --no-cache)")
 @click.pass_context
@@ -38,6 +53,7 @@ def main(
     plain: bool,
     no_color: bool,
     no_emoji: bool,
+    no_tui: bool,
     no_cache: bool,
     refresh: bool,
 ) -> None:
@@ -52,6 +68,7 @@ def main(
     ctx.obj["no_emoji"] = no_emoji or plain
     ctx.obj["no_cache"] = no_cache
     ctx.obj["refresh"] = refresh
+    ctx.obj["no_tui"] = no_tui
     ctx.obj["fmt"] = _resolve_format(json_output, plain)
 
 
@@ -99,6 +116,27 @@ def drivers(
             raise SystemExit(1)
 
         driver_data = client.get_drivers(product_path)
+
+        # Determine if TUI should be used
+        use_tui = (
+            _can_run_tui(no_tui=ctx.obj["no_tui"])
+            and ctx.obj["fmt"] == FormatMode.RICH  # Only for rich mode
+        )
+
+        if use_tui:
+            from .tui import run_tui
+            run_tui(
+                driver_data=driver_data,
+                product_info=products[0] if products else {},
+                serial=serial,
+                full_urls=full_urls,
+                os_filter=os_filter,
+                category_filter=category_filter,
+                priority_filter=priority_filter,
+                active_only=active_only,
+            )
+            return
+
         from .output import format_drivers
         output = format_drivers(
             driver_data,

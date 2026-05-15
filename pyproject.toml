@@ -13,6 +13,7 @@ dependencies = [
     "rich>=13.0",
     "click>=8.0",
     "platformdirs>=3.0",
+    "textual>=0.40",
 ]
 
 [project.optional-dependencies]
