@@ -208,10 +208,9 @@ body {
 
 /* ---- Tabs ---- */
 .tab-bar {
-  display: flex;
+  display: none;
   border-bottom: 2px solid var(--border);
   margin-bottom: 16px;
-  display: none;
 }
 .tab-bar.visible {
   display: flex;
@@ -310,19 +309,25 @@ body {
   color: var(--text-muted);
 }
 
+/* ---- Results container (hidden until search) ---- */
+.results-container {
+  display: none;
+}
+.results-container.visible {
+  display: block;
+}
+
 /* ---- Sub-header (results) ---- */
 .sub-header {
   background: var(--subheader-bg);
   padding: 10px 24px;
   color: var(--subheader-text);
   font-size: 13px;
-  display: none;
+  display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-}
-.sub-header.visible {
-  display: flex;
+  margin: 0 -16px;
 }
 .sub-header .serial {
   font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
@@ -342,7 +347,7 @@ body {
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  margin: 16px 0;
+  margin: 16px 0 8px 0;
   background: var(--filter-bg);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -395,6 +400,55 @@ body {
   border-color: var(--lenovo-dark-red);
   color: #FFFFFF;
 }
+.expand-collapse-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--btn-border);
+  border-radius: 4px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  margin-left: auto;
+}
+.expand-collapse-btn:hover {
+  border-color: var(--lenovo-red);
+  color: var(--lenovo-red);
+}
+
+/* ---- Category jump links ---- */
+.category-jumps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 0;
+}
+.category-jumps:empty {
+  display: none;
+}
+.category-jump-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.category-jump-pill:hover {
+  background: var(--lenovo-red);
+  color: #FFFFFF;
+  border-color: var(--lenovo-red);
+  text-decoration: none;
+}
 
 /* ---- Category section ---- */
 .category-section {
@@ -420,14 +474,11 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: 4px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   cursor: pointer;
   transition: box-shadow 0.15s ease, background 0.15s ease;
   border-left: 3px solid var(--border-card);
-  display: flex;
-  flex-direction: row;
-  gap: 16px;
+  overflow: hidden;
 }
 .driver-card:hover {
   box-shadow: var(--shadow-hover);
@@ -441,6 +492,75 @@ body {
 }
 .driver-card.priority-optional {
   border-left-color: var(--lenovo-gray);
+}
+
+/* ---- Collapsed row ---- */
+.driver-card-collapsed {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  gap: 10px;
+  min-height: 38px;
+}
+.driver-card-collapsed .priority-dot {
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 1;
+}
+.driver-card-collapsed .collapsed-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.driver-card-collapsed .collapsed-version {
+  flex-shrink: 0;
+  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+  min-width: 70px;
+  white-space: nowrap;
+}
+.driver-card-collapsed .collapsed-date {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+  min-width: 80px;
+  white-space: nowrap;
+}
+.driver-card-collapsed .collapsed-badge {
+  flex-shrink: 0;
+}
+.driver-card-collapsed .expand-arrow {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+.driver-card.expanded .expand-arrow {
+  transform: rotate(90deg);
+}
+
+/* ---- Expanded content ---- */
+.driver-card-expanded {
+  display: none;
+  padding: 0 14px 12px 14px;
+}
+.driver-card.expanded .driver-card-expanded {
+  display: block;
+}
+.driver-card-expanded-inner {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  border-top: 1px solid var(--border-card);
+  padding-top: 10px;
 }
 .driver-card-left {
   flex: 1;
@@ -468,6 +588,7 @@ body {
   text-align: center;
   border-bottom: 1px solid var(--border-card);
   padding-bottom: 6px;
+  width: 100%;
 }
 .driver-card-right .changes-text {
   color: var(--text-muted);
@@ -488,6 +609,7 @@ body {
 .driver-card-right .changes-text li {
   margin-bottom: 2px;
 }
+
 .driver-card-header {
   display: flex;
   align-items: flex-start;
@@ -750,6 +872,15 @@ footer {
     flex: 1 1 100%;
     min-width: 0;
   }
+  .driver-card-expanded-inner {
+    flex-direction: column;
+  }
+  .driver-card-right {
+    border-left: none;
+    padding-left: 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-card);
+  }
 }
 @media (max-width: 480px) {
   html {
@@ -790,9 +921,24 @@ footer {
     padding: 8px 14px;
     font-size: 14px;
   }
-  .driver-card {
+  .driver-card-collapsed {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .driver-card-collapsed .collapsed-title {
+    flex: 1 1 100%;
+    order: 1;
+  }
+  .driver-card-collapsed .priority-dot {
+    order: 0;
+  }
+  .driver-card-collapsed .collapsed-version,
+  .driver-card-collapsed .collapsed-date,
+  .driver-card-collapsed .collapsed-badge {
+    order: 2;
+  }
+  .driver-card-expanded-inner {
     flex-direction: column;
-    padding: 10px 10px;
   }
   .driver-card-right {
     border-left: none;
@@ -811,6 +957,10 @@ footer {
   }
   .category-header {
     font-size: 14px;
+  }
+  .category-jump-pill {
+    font-size: 11px;
+    padding: 3px 10px;
   }
   footer {
     margin-left: -8px;
@@ -851,29 +1001,36 @@ footer {
   </div>
 
   <div class="tab-content active" id="tab-drivers">
-    <div class="sub-header" id="sub-header">
-      <span>Serial:</span> <span class="serial" id="serial-display"></span>
-      <span class="product-name-label" id="product-name-sub"></span>
-    </div>
 
-    <div class="filter-bar">
-      <input type="text" id="filter-input" placeholder="Filter drivers by title…">
-      <button class="filter-btn active" data-priority="all">All</button>
-      <button class="filter-btn" data-priority="Critical">Critical</button>
-      <button class="filter-btn" data-priority="Recommended">Recommended</button>
-      <button class="filter-btn" data-priority="Optional">Optional</button>
-    </div>
-
-    <div id="driver-list"></div>
-
-    <footer id="footer-drivers">
-      <div class="legend">
-        <span class="legend-item"><span class="badge badge-critical">Critical</span></span>
-        <span class="legend-item"><span class="badge badge-recommended">Recommended</span></span>
-        <span class="legend-item"><span class="badge badge-optional">Optional</span></span>
+    <div class="results-container" id="results-container">
+      <div class="sub-header">
+        <span>Serial:</span> <span class="serial" id="serial-display"></span>
+        <span class="product-name-label" id="product-name-sub"></span>
       </div>
-      <div id="generated-at"></div>
-    </footer>
+
+      <div class="filter-bar">
+        <input type="text" id="filter-input" placeholder="Filter drivers by title…">
+        <button class="filter-btn active" data-priority="all">All</button>
+        <button class="filter-btn" data-priority="Critical">Critical</button>
+        <button class="filter-btn" data-priority="Recommended">Recommended</button>
+        <button class="filter-btn" data-priority="Optional">Optional</button>
+        <button class="expand-collapse-btn" id="expand-collapse-btn">Expand All</button>
+      </div>
+
+      <div class="category-jumps" id="category-jumps"></div>
+
+      <div id="driver-list"></div>
+
+      <footer id="footer-drivers">
+        <div class="legend">
+          <span class="legend-item"><span class="badge badge-critical">Critical</span></span>
+          <span class="legend-item"><span class="badge badge-recommended">Recommended</span></span>
+          <span class="legend-item"><span class="badge badge-optional">Optional</span></span>
+        </div>
+        <div id="generated-at"></div>
+      </footer>
+    </div>
+
   </div>
 
   <div class="tab-content" id="tab-warranty">
@@ -894,6 +1051,7 @@ footer {
   var expandedCards = {};
   var currentData = null;
   var currentWarranty = null;
+  var allExpanded = false;
 
   // ---- DOM refs ----
   var serialInput = document.getElementById("serial-input");
@@ -904,13 +1062,15 @@ footer {
   var productNameEl = document.getElementById("product-name");
   var productMetaEl = document.getElementById("product-meta");
   var tabBar = document.getElementById("tab-bar");
-  var subHeader = document.getElementById("sub-header");
+  var resultsContainer = document.getElementById("results-container");
   var serialDisplay = document.getElementById("serial-display");
   var productNameSub = document.getElementById("product-name-sub");
   var filterInput = document.getElementById("filter-input");
   var driverList = document.getElementById("driver-list");
   var generatedAt = document.getElementById("generated-at");
   var warrantyContent = document.getElementById("warranty-content");
+  var categoryJumps = document.getElementById("category-jumps");
+  var expandCollapseBtn = document.getElementById("expand-collapse-btn");
 
   // ---- Search ----
   searchBtn.addEventListener("click", doSearch);
@@ -938,6 +1098,9 @@ footer {
         }
         currentData = result.drivers;
         currentWarranty = result.warranty;
+        expandedCards = {};
+        allExpanded = false;
+        updateExpandCollapseBtn();
         renderResults(result);
       })
       .catch(function(err) {
@@ -972,6 +1135,28 @@ footer {
     });
   });
 
+  // ---- Expand/Collapse All ----
+  expandCollapseBtn.addEventListener("click", function() {
+    if (!currentData || !currentData.drivers) return;
+    allExpanded = !allExpanded;
+    currentData.drivers.forEach(function(d, idx) {
+      expandedCards[idx] = allExpanded;
+    });
+    updateExpandCollapseBtn();
+    // Toggle all cards
+    document.querySelectorAll(".driver-card").forEach(function(card) {
+      if (allExpanded) {
+        card.classList.add("expanded");
+      } else {
+        card.classList.remove("expanded");
+      }
+    });
+  });
+
+  function updateExpandCollapseBtn() {
+    expandCollapseBtn.textContent = allExpanded ? "Collapse All" : "Expand All";
+  }
+
   // ---- UI helpers ----
   function showError(msg) {
     errorDisplay.textContent = msg;
@@ -991,7 +1176,7 @@ footer {
   function hideResults() {
     productInfoEl.classList.remove("visible");
     tabBar.classList.remove("visible");
-    subHeader.classList.remove("visible");
+    resultsContainer.classList.remove("visible");
   }
 
   // ---- Render results ----
@@ -1009,10 +1194,10 @@ footer {
     // Tabs
     tabBar.classList.add("visible");
 
-    // Sub-header
+    // Results container
     serialDisplay.textContent = result.serial;
     productNameSub.textContent = (currentData && currentData.productName) || p.name || "";
-    subHeader.classList.add("visible");
+    resultsContainer.classList.add("visible");
 
     // Generated at
     if (currentData && currentData.generatedAt) {
@@ -1073,6 +1258,7 @@ footer {
   // ---- Render drivers ----
   function renderDrivers() {
     driverList.innerHTML = "";
+    categoryJumps.innerHTML = "";
     if (!currentData || !currentData.drivers || currentData.drivers.length === 0) {
       driverList.innerHTML = '<div class="no-results">No drivers found.</div>';
       return;
@@ -1104,9 +1290,27 @@ footer {
     });
 
     var sortedCats = Object.keys(cats).sort();
+
+    // Build category jump links
+    sortedCats.forEach(function(cat) {
+      var a = document.createElement("a");
+      a.className = "category-jump-pill";
+      a.href = "#cat-" + cat.replace(/[^a-zA-Z0-9]/g, "-");
+      a.textContent = cat;
+      a.addEventListener("click", function(e) {
+        e.preventDefault();
+        var target = document.getElementById("cat-" + cat.replace(/[^a-zA-Z0-9]/g, "-"));
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+      categoryJumps.appendChild(a);
+    });
+
     sortedCats.forEach(function(cat) {
       var section = document.createElement("div");
       section.className = "category-section";
+      section.id = "cat-" + cat.replace(/[^a-zA-Z0-9]/g, "-");
 
       var header = document.createElement("div");
       header.className = "category-header";
@@ -1138,6 +1342,53 @@ footer {
 
     var idx = (currentData.drivers || []).indexOf(d);
     var isExpanded = !!expandedCards[idx];
+    if (isExpanded) {
+      card.classList.add("expanded");
+    }
+
+    // ---- Collapsed row ----
+    var collapsedRow = document.createElement("div");
+    collapsedRow.className = "driver-card-collapsed";
+
+    var dot = document.createElement("span");
+    dot.className = "priority-dot";
+    dot.textContent = priorityDot(d.priority);
+
+    var title = document.createElement("span");
+    title.className = "collapsed-title";
+    title.textContent = d.shortTitle || d.title;
+
+    var badge = document.createElement("span");
+    badge.className = "badge " + priorityClass(d.priority) + " collapsed-badge";
+    badge.textContent = d.priority;
+
+    var ver = document.createElement("span");
+    ver.className = "collapsed-version";
+    ver.textContent = "v" + (d.version || "N/A");
+
+    var released = document.createElement("span");
+    released.className = "collapsed-date";
+    released.textContent = d.released || "N/A";
+
+    var arrow = document.createElement("span");
+    arrow.className = "expand-arrow";
+    arrow.textContent = "\u25B6"; // ▶
+
+    collapsedRow.appendChild(dot);
+    collapsedRow.appendChild(title);
+    collapsedRow.appendChild(badge);
+    collapsedRow.appendChild(ver);
+    collapsedRow.appendChild(released);
+    collapsedRow.appendChild(arrow);
+
+    card.appendChild(collapsedRow);
+
+    // ---- Expanded content ----
+    var expandedDiv = document.createElement("div");
+    expandedDiv.className = "driver-card-expanded";
+
+    var innerDiv = document.createElement("div");
+    innerDiv.className = "driver-card-expanded-inner";
 
     // Left column
     var leftCol = document.createElement("div");
@@ -1146,35 +1397,35 @@ footer {
     var headerRow = document.createElement("div");
     headerRow.className = "driver-card-header";
 
-    var dot = document.createElement("span");
-    dot.className = "priority-dot";
-    dot.textContent = priorityDot(d.priority);
+    var dot2 = document.createElement("span");
+    dot2.className = "priority-dot";
+    dot2.textContent = priorityDot(d.priority);
 
-    var title = document.createElement("span");
-    title.className = "driver-card-title";
-    title.textContent = d.shortTitle || d.title;
+    var title2 = document.createElement("span");
+    title2.className = "driver-card-title";
+    title2.textContent = d.shortTitle || d.title;
 
-    headerRow.appendChild(dot);
-    headerRow.appendChild(title);
+    headerRow.appendChild(dot2);
+    headerRow.appendChild(title2);
     leftCol.appendChild(headerRow);
 
     var meta = document.createElement("div");
     meta.className = "driver-meta";
 
-    var badge = document.createElement("span");
-    badge.className = "badge " + priorityClass(d.priority);
-    badge.textContent = d.priority;
+    var badge2 = document.createElement("span");
+    badge2.className = "badge " + priorityClass(d.priority);
+    badge2.textContent = d.priority;
 
-    var ver = document.createElement("span");
-    ver.className = "version";
-    ver.textContent = "v" + (d.version || "N/A");
+    var ver2 = document.createElement("span");
+    ver2.className = "version";
+    ver2.textContent = "v" + (d.version || "N/A");
 
-    var released = document.createElement("span");
-    released.textContent = d.released || "N/A";
+    var released2 = document.createElement("span");
+    released2.textContent = d.released || "N/A";
 
-    meta.appendChild(badge);
-    meta.appendChild(ver);
-    meta.appendChild(released);
+    meta.appendChild(badge2);
+    meta.appendChild(ver2);
+    meta.appendChild(released2);
     leftCol.appendChild(meta);
 
     var urlRow = document.createElement("div");
@@ -1201,7 +1452,7 @@ footer {
     leftCol.appendChild(urlRow);
 
     var detail = document.createElement("div");
-    detail.className = "driver-detail" + (isExpanded ? " visible" : "");
+    detail.className = "driver-detail visible";
 
     var table = document.createElement("table");
     var rows = [
@@ -1293,12 +1544,17 @@ footer {
       rightCol.appendChild(noSummary);
     }
 
-    card.appendChild(leftCol);
-    card.appendChild(rightCol);
+    innerDiv.appendChild(leftCol);
+    innerDiv.appendChild(rightCol);
+    expandedDiv.appendChild(innerDiv);
+    card.appendChild(expandedDiv);
 
-    card.addEventListener("click", function() {
+    // ---- Toggle expand on click ----
+    card.addEventListener("click", function(e) {
+      // Don't toggle if clicking a link or copy button
+      if (e.target.tagName === "A" || e.target.classList.contains("copy-btn")) return;
       expandedCards[idx] = !expandedCards[idx];
-      detail.classList.toggle("visible");
+      card.classList.toggle("expanded");
     });
 
     return card;
