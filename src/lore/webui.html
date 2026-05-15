@@ -93,7 +93,7 @@ body {
 }
 
 .container {
-  max-width: 960px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 0 16px;
 }
@@ -535,6 +535,16 @@ body {
   background: rgba(128, 128, 128, 0.15);
   color: #888;
 }
+.driver-card-collapsed .collapsed-os-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(100, 100, 100, 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
 .driver-card-collapsed .collapsed-version {
   flex-shrink: 0;
   font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
@@ -958,6 +968,7 @@ footer {
     order: 0;
   }
   .driver-card-collapsed .collapsed-badge,
+  .driver-card-collapsed .collapsed-os-badge,
   .driver-card-collapsed .collapsed-version,
   .driver-card-collapsed .collapsed-date {
     order: 2;
@@ -1467,6 +1478,18 @@ footer {
     badge.className = "collapsed-badge " + priorityClass(d.priority);
     badge.textContent = d.priority || "Optional";
 
+    // OS badge — show short OS if available ("Windows 11 (64-bit)" → "Win11")
+    var osBadge = document.createElement("span");
+    if (d.osKeys && d.osKeys.length > 0) {
+      osBadge.className = "collapsed-os-badge";
+      var osShort = d.osKeys.map(function(os) {
+        var m = os.match(/Windows\s+(\d+)\s/);
+        if (m) return "Win" + m[1];
+        return os.replace(/\s*\(.*\)/, "");
+      }).join("/");
+      osBadge.textContent = osShort;
+    }
+
     var ver = document.createElement("span");
     ver.className = "collapsed-version";
     ver.textContent = "v" + (d.version || "N/A");
@@ -1485,6 +1508,7 @@ footer {
     collapsedRow.appendChild(dot);
     collapsedRow.appendChild(title);
     collapsedRow.appendChild(badge);
+    collapsedRow.appendChild(osBadge);
     collapsedRow.appendChild(ver);
     collapsedRow.appendChild(released);
     collapsedRow.appendChild(spacer);
