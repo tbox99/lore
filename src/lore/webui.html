@@ -93,9 +93,9 @@ body {
 }
 
 .container {
-  max-width: 1100px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 0 24px;
 }
 
 /* ---- Top Bar ---- */
@@ -858,7 +858,7 @@ footer {
 /* ---- Responsive ---- */
 @media (min-width: 1200px) {
   .container {
-    max-width: 1100px;
+    max-width: 100%;
     margin: 0 auto;
   }
 }
@@ -1359,7 +1359,10 @@ footer {
       var pill = document.createElement("span");
       pill.className = "filter-pill" + (activeCategories[cat] ? " active" : "");
       pill.setAttribute("data-category", cat);
-      pill.textContent = cat;
+      // Show short category name (trim parenthetical descriptions)
+      var shortCat = cat.replace(/\s*\(.*\)\s*$/, "").trim();
+      pill.textContent = shortCat || cat;
+      pill.title = cat;  // full name on hover
       pill.addEventListener("click", function() {
         if (activeCategories[cat]) {
           delete activeCategories[cat];
@@ -1418,7 +1421,9 @@ footer {
 
       var header = document.createElement("div");
       header.className = "category-header";
-      header.textContent = cat;
+      var shortCat = cat.replace(/\s*\(.*\)\s*$/, "").trim();
+      header.textContent = shortCat || cat;
+      header.title = cat;  // full name on hover
       var count = document.createElement("span");
       count.className = "category-count";
       count.textContent = "(" + cats[cat].length + ")";
