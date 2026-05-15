@@ -796,12 +796,15 @@ body {
   line-height: 1.5;
 }
 .driver-card-right .changes-label {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-card);
+  padding-bottom: 6px;
 }
 .driver-card-right .changes-text {
   color: var(--text-muted);
@@ -810,8 +813,9 @@ body {
   color: var(--text);
   font-size: 12px;
   display: block;
-  margin-top: 6px;
+  margin-top: 8px;
   margin-bottom: 2px;
+  font-weight: 600;
 }
 .driver-card-right .changes-text ul {
   margin: 0;
