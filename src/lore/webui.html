@@ -399,26 +399,26 @@ body {
 .filter-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .filter-row:last-child {
   margin-bottom: 0;
 }
 .filter-row-label {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
-  min-width: 76px;
+  min-width: 70px;
 }
 .filter-pill {
   display: inline-block;
-  padding: 4px 12px;
-  border-radius: 16px;
+  padding: 5px 14px;
+  border-radius: 14px;
   font-size: 12px;
   font-weight: 600;
   background: var(--bg-card);
@@ -428,6 +428,7 @@ body {
   white-space: nowrap;
   transition: all 0.15s ease;
   user-select: none;
+  line-height: 1.3;
 }
 .filter-pill:hover {
   border-color: var(--lenovo-red);
@@ -492,9 +493,9 @@ body {
 .driver-card-collapsed {
   display: flex;
   align-items: center;
-  padding: 6px 10px;
-  gap: 6px;
-  min-height: 32px;
+  padding: 5px 10px;
+  gap: 8px;
+  min-height: 30px;
 }
 .driver-card-collapsed .priority-dot {
   flex-shrink: 0;
@@ -502,7 +503,7 @@ body {
   line-height: 1;
 }
 .driver-card-collapsed .collapsed-title {
-  flex: 1;
+  flex-shrink: 1;
   min-width: 0;
   font-weight: 600;
   font-size: 13px;
@@ -510,6 +511,27 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.driver-card-collapsed .collapsed-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.collapsed-badge.badge-critical {
+  background: rgba(226, 35, 26, 0.15);
+  color: #E2231A;
+}
+.collapsed-badge.badge-recommended {
+  background: rgba(234, 179, 8, 0.15);
+  color: #B8860B;
+}
+.collapsed-badge.badge-optional {
+  background: rgba(128, 128, 128, 0.15);
+  color: #888;
 }
 .driver-card-collapsed .collapsed-version {
   flex-shrink: 0;
@@ -523,6 +545,10 @@ body {
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
+}
+.driver-card-collapsed .collapsed-spacer {
+  flex: 1;
+  min-width: 8px;
 }
 .driver-card-collapsed .expand-arrow {
   flex-shrink: 0;
@@ -928,9 +954,13 @@ footer {
   .driver-card-collapsed .priority-dot {
     order: 0;
   }
+  .driver-card-collapsed .collapsed-badge,
   .driver-card-collapsed .collapsed-version,
   .driver-card-collapsed .collapsed-date {
     order: 2;
+  }
+  .driver-card-collapsed .collapsed-spacer {
+    display: none;
   }
   .driver-card-expanded-inner {
     flex-direction: column;
@@ -1428,6 +1458,10 @@ footer {
     title.className = "collapsed-title";
     title.textContent = d.shortTitle || d.title;
 
+    var badge = document.createElement("span");
+    badge.className = "collapsed-badge " + priorityClass(d.priority);
+    badge.textContent = d.priority || "Optional";
+
     var ver = document.createElement("span");
     ver.className = "collapsed-version";
     ver.textContent = "v" + (d.version || "N/A");
@@ -1436,14 +1470,19 @@ footer {
     released.className = "collapsed-date";
     released.textContent = d.released || "N/A";
 
+    var spacer = document.createElement("span");
+    spacer.className = "collapsed-spacer";
+
     var arrow = document.createElement("span");
     arrow.className = "expand-arrow";
     arrow.textContent = "\u25B6"; // ▶
 
     collapsedRow.appendChild(dot);
     collapsedRow.appendChild(title);
+    collapsedRow.appendChild(badge);
     collapsedRow.appendChild(ver);
     collapsedRow.appendChild(released);
+    collapsedRow.appendChild(spacer);
     collapsedRow.appendChild(arrow);
 
     card.appendChild(collapsedRow);
