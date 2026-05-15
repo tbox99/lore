@@ -23,15 +23,17 @@ def _resolve_format(json_output: bool, plain: bool) -> str:
     return FormatMode.RICH
 
 
-def _can_run_tui(no_tui: bool = False) -> bool:
-    """Check if TUI mode is possible and desired."""
-    if no_tui:
+def _should_use_webview(no_web: bool = False, fmt: str = FormatMode.RICH) -> bool:
+    """Check if webview mode should be used (default for interactive/atty terminals)."""
+    if no_web:
+        return False
+    if fmt != FormatMode.RICH:
         return False
     try:
         import sys
         if not sys.stdout.isatty():
             return False
-        from lore.tui import LoreDriversApp  # noqa: F401
+        from lore.webview import open_webview  # noqa: F401
         return True
     except ImportError:
         return False
@@ -43,7 +45,8 @@ def _can_run_tui(no_tui: bool = False) -> bool:
 @click.option("--plain", is_flag=True, help="Plain text output (no color, no emoji)")
 @click.option("--no-color", is_flag=True, help="Disable colors")
 @click.option("--no-emoji", is_flag=True, help="Disable emoji")
-@click.option("--no-tui", is_flag=True, help="Disable interactive TUI, use static output")
+@click.option("--no-web", is_flag=True, help="Disable browser webview, use static terminal output")
+@click.option("--no-tui", is_flag=True, hidden=True, help="Alias for --no-web (legacy)")
 @click.option("--no-cache", is_flag=True, help="Bypass cache")
 @click.option("--refresh", is_flag=True, help="Force fresh API calls (implies --no-cache)")
 @click.pass_context
@@ -53,6 +56,7 @@ def main(
     plain: bool,
     no_color: bool,
     no_emoji: bool,
+    no_web: bool,
     no_tui: bool,
     no_cache: bool,
     refresh: bool,
@@ -68,7 +72,7 @@ def main(
     ctx.obj["no_emoji"] = no_emoji or plain
     ctx.obj["no_cache"] = no_cache
     ctx.obj["refresh"] = refresh
-    ctx.obj["no_tui"] = no_tui
+    ctx.obj["no_web"] = no_web or no_tui
     ctx.obj["fmt"] = _resolve_format(json_output, plain)
 
 
@@ -117,15 +121,15 @@ def drivers(
 
         driver_data = client.get_drivers(product_path)
 
-        # Determine if TUI should be used
-        use_tui = (
-            _can_run_tui(no_tui=ctx.obj["no_tui"])
-            and ctx.obj["fmt"] == FormatMode.RICH  # Only for rich mode
+        # Determine if webview should be used
+        use_webview = _should_use_webview(
+            no_web=ctx.obj["no_web"],
+            fmt=ctx.obj["fmt"],
         )
 
-        if use_tui:
-            from .tui import run_tui
-            run_tui(
+        if use_webview:
+            from .webview import open_webview
+            html_path = open_webview(
                 driver_data=driver_data,
                 product_info=products[0] if products else {},
                 serial=serial,
@@ -135,6 +139,7 @@ def drivers(
                 priority_filter=priority_filter,
                 active_only=active_only,
             )
+            click.echo(f"Opened driver listing in browser: {html_path}", err=True)
             return
 
         from .output import format_drivers
