@@ -473,6 +473,9 @@ body {
   cursor: pointer;
   transition: box-shadow 0.15s ease, background 0.15s ease;
   border-left: 3px solid var(--border-card);
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
 }
 .driver-card:hover {
   box-shadow: var(--shadow-hover);
@@ -486,6 +489,32 @@ body {
 }
 .driver-card.priority-optional {
   border-left-color: var(--lenovo-gray);
+}
+.driver-card-left {
+  flex: 1;
+  min-width: 0;
+}
+.driver-card-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-left: 12px;
+  border-left: 1px solid var(--border-card);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.driver-card-right .summary-label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+.driver-card-right .summary-text {
+  color: var(--text-muted);
 }
 .driver-card-header {
   display: flex;
@@ -741,7 +770,14 @@ footer {
     font-size: 14px;
   }
   .driver-card {
+    flex-direction: column;
     padding: 10px 10px;
+  }
+  .driver-card-right {
+    border-left: none;
+    padding-left: 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-card);
   }
   .driver-meta {
     margin-left: 0;
@@ -941,9 +977,13 @@ footer {
     title.className = "driver-card-title";
     title.textContent = d.shortTitle || d.title;
 
+    // Left column
+    var leftCol = document.createElement("div");
+    leftCol.className = "driver-card-left";
+
     headerRow.appendChild(dot);
     headerRow.appendChild(title);
-    card.appendChild(headerRow);
+    leftCol.appendChild(headerRow);
 
     // Meta row
     var meta = document.createElement("div");
@@ -963,7 +1003,7 @@ footer {
     meta.appendChild(badge);
     meta.appendChild(ver);
     meta.appendChild(released);
-    card.appendChild(meta);
+    leftCol.appendChild(meta);
 
     // URL row
     var urlRow = document.createElement("div");
@@ -974,7 +1014,7 @@ footer {
     a.href = d.url;
     a.target = "_blank";
     a.rel = "noopener";
-    a.textContent = stripUrl(d.url);
+    a.textContent = d.url;
 
     var copyBtn = document.createElement("button");
     copyBtn.className = "copy-btn";
@@ -987,7 +1027,7 @@ footer {
 
     urlRow.appendChild(a);
     urlRow.appendChild(copyBtn);
-    card.appendChild(urlRow);
+    leftCol.appendChild(urlRow);
 
     // Detail panel
     var detail = document.createElement("div");
@@ -1003,9 +1043,6 @@ footer {
     ];
     if (d.sha256 && d.sha256 !== "N/A") {
       rows.push(["SHA256", '<span class="sha256">' + escHtml(d.sha256) + '</span>']);
-    }
-    if (d.summary) {
-      rows.push(["Summary", escHtml(d.summary)]);
     }
     if (d.osKeys && d.osKeys.length > 0) {
       rows.push(["OS", escHtml(d.osKeys.join(", "))]);
@@ -1036,7 +1073,32 @@ footer {
       detail.appendChild(warn);
     }
 
-    card.appendChild(detail);
+    leftCol.appendChild(detail);
+
+    // Right column (Summary)
+    var rightCol = document.createElement("div");
+    rightCol.className = "driver-card-right";
+
+    if (d.summary) {
+      var summaryLabel = document.createElement("div");
+      summaryLabel.className = "summary-label";
+      summaryLabel.textContent = "Summary";
+      rightCol.appendChild(summaryLabel);
+
+      var summaryText = document.createElement("div");
+      summaryText.className = "summary-text";
+      summaryText.textContent = d.summary;
+      rightCol.appendChild(summaryText);
+    } else {
+      var noSummary = document.createElement("div");
+      noSummary.className = "summary-text";
+      noSummary.style.fontStyle = "italic";
+      noSummary.textContent = "No description available";
+      rightCol.appendChild(noSummary);
+    }
+
+    card.appendChild(leftCol);
+    card.appendChild(rightCol);
 
     // Toggle expand on click
     card.addEventListener("click", function() {
