@@ -788,6 +788,7 @@ body {
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
   padding-left: 12px;
   border-left: 1px solid var(--border-card);
