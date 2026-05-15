@@ -33,13 +33,13 @@ def _open_browser_app_mode(url: str) -> bool:
     # Common browser commands that support --app mode (no chrome)
     app_browsers = [
         # (command, extra_args)
-        ("google-chrome-stable", ["--app={url}"]),
-        ("google-chrome", ["--app={url}"]),
-        ("chromium", ["--app={url}"]),
-        ("chromium-browser", ["--app={url}"]),
-        ("brave-browser", ["--app={url}"]),
-        ("microsoft-edge", ["--app={url}"]),
-        ("vivaldi", ["--app={url}"]),
+        ("google-chrome-stable", ["--app={url}", "--window-size=1100,750"]),
+        ("google-chrome", ["--app={url}", "--window-size=1100,750"]),
+        ("chromium", ["--app={url}", "--window-size=1100,750"]),
+        ("chromium-browser", ["--app={url}", "--window-size=1100,750"]),
+        ("brave-browser", ["--app={url}", "--window-size=1100,750"]),
+        ("microsoft-edge", ["--app={url}", "--window-size=1100,750"]),
+        ("vivaldi", ["--app={url}", "--window-size=1100,750"]),
     ]
 
     for cmd, args_template in app_browsers:
