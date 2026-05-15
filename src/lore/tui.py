@@ -167,16 +167,6 @@ def _priority_dot(priority: str) -> str:
     return "⚪"
 
 
-def _priority_color(priority: str) -> str:
-    """Return Rich color name for priority."""
-    p = priority.lower()
-    if p == "critical":
-        return "red"
-    elif p == "recommended":
-        return "yellow"
-    return "dim"
-
-
 # ---------------------------------------------------------------------------
 # URL formatting
 # ---------------------------------------------------------------------------
@@ -220,11 +210,12 @@ class DriverItem(Static):
         height: auto;
     }
     DriverItem:focus {
-        background: $primary-background-lighten-2;
+        background: $primary 15%;
         color: $text;
+        border-left: tall $primary;
     }
     DriverItem:hover {
-        background: $primary-background-lighten-1;
+        background: $primary 8%;
     }
     DriverItem .driver-title {
         padding: 0;
@@ -256,13 +247,12 @@ class DriverItem(Static):
 
     def compose(self) -> ComposeResult:
         dot = _priority_dot(self.entry.priority)
-        pri_color = _priority_color(self.entry.priority)
         title = self.entry.title if self.full_urls else self.entry.short_title
         # Truncate long versions for the list view
         ver = self.entry.version
         if len(ver) > 15:
             ver = ver[:12] + "..."
-        line = f"{dot} [{pri_color}]{title}[/]    [dim]v{ver}[/]  [dim]{self.entry.released}[/]"
+        line = f"{dot} {title}    [dim]v{ver}[/]  [dim]{self.entry.released}[/]"
         yield Static(line, classes="driver-title")
         # Expanded detail (initially hidden)
         detail_widget = Static(self._detail_text(), classes="expanded-detail")
@@ -276,7 +266,7 @@ class DriverItem(Static):
         lines = [
             f"  Released: {e.released}    Updated: {e.updated}",
             f"  Category: {e.category}    Size: {e.size}",
-            f"  URL: [link={e.url}]{url_display}[/link]",
+            f"  URL: {url_display}",
             f"  DocId: {e.doc_id}",
         ]
         if e.sha256 and e.sha256 != "N/A":
