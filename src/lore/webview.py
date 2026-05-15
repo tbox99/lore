@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
+import re
 import tempfile
 import webbrowser
 from datetime import datetime, timezone
@@ -12,6 +14,7 @@ from typing import Any
 from platformdirs import user_cache_dir
 
 from .output import _short_title, _epoch_ms_to_date
+from .support_client import DiskCache
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +58,90 @@ def _open_browser_app_mode(url: str) -> bool:
     return False
 
 
+def _build_readme_url(download_url: str) -> str:
+    """Derive the readme HTML URL from the download URL."""
+    if not download_url or download_url == "N/A":
+        return ""
+    # Strip query parameters (token auth)
+    base = download_url.split("?")[0]
+    # Get the last path segment to check for extension
+    last_slash = base.rfind("/")
+    if last_slash == -1:
+        last_slash = 0
+    filename = base[last_slash + 1:]
+    if "." in filename:
+        # Replace the file extension with .html
+        base_no_ext = filename.rsplit(".", 1)[0]
+        return base[:last_slash + 1] + base_no_ext + ".html"
+    # No extension: just append .html
+    return base + ".html"
+
+
+# TTL for readme cache (24 hours)
+_TTL_README = 3600 * 24
+
+# Module-level readme cache (lazy-init on first use)
+_readme_cache: DiskCache | None = None
+
+
+def _get_readme_cache() -> DiskCache:
+    """Get or create the readme DiskCache."""
+    global _readme_cache
+    if _readme_cache is None:
+        _readme_cache = DiskCache()
+    return _readme_cache
+
+
+def _fetch_readme_changes(readme_url: str, client: Any) -> str:
+    """Fetch a readme HTML page and extract 'Changes in this release'.
+
+    Uses the provided httpx client for the request. Results are cached
+    with a 24h TTL. Returns extracted text or empty string on failure.
+    """
+    cache = _get_readme_cache()
+    cache_key = f"readme:{readme_url}"
+    cached = cache.get(cache_key, _TTL_README)
+    if cached is not None:
+        return cached if isinstance(cached, str) else ""
+    try:
+        resp = client.get(readme_url, timeout=5.0, follow_redirects=True)
+        if resp.status_code != 200:
+            cache.set(cache_key, "")
+            return ""
+        text = resp.text
+        # Extract "Changes in this release" section
+        pattern = re.compile(
+            r"CHANGES\s+IN\s+THIS\s+RELEASE(.*?)(?:"
+            r"\n[A-Z]{2,}[A-Z\s]*\n|"  # next all-caps header
+            r"Determining|"  # installation section
+            r"<[Hh][1-6]|"  # HTML heading
+            r"</body|"  # end of page
+            r"$)",
+            re.DOTALL | re.IGNORECASE,
+        )
+        match = pattern.search(text)
+        if match:
+            changes = match.group(1).strip()
+            # Clean up HTML tags
+            changes = re.sub(r"<[^>]+>", "", changes)
+            changes = re.sub(r"&nbsp;", " ", changes)
+            changes = re.sub(r"&amp;", "&", changes)
+            changes = re.sub(r"&lt;", "<", changes)
+            changes = re.sub(r"&gt;", ">", changes)
+            # Collapse whitespace
+            changes = re.sub(r"\s+", " ", changes).strip()
+            # Truncate if very long
+            if len(changes) > 500:
+                changes = changes[:497] + "..."
+            cache.set(cache_key, changes)
+            return changes
+        cache.set(cache_key, "")
+        return ""
+    except Exception:
+        cache.set(cache_key, "")
+        return ""
+
+
 def _prepare_webview_data(
     driver_data: dict,
     product_info: dict | None = None,
@@ -64,12 +151,15 @@ def _prepare_webview_data(
     category_filter: str | None = None,
     priority_filter: str | None = None,
     active_only: bool = False,
+    no_readme: bool = False,
+    readme_client: Any = None,
 ) -> dict:
     """Prepare driver data for embedding in the HTML page.
 
     Returns a dict with keys: serial, productName, drivers, categories, generatedAt.
     Each driver entry has: title, shortTitle, docId, summary, category, version,
-    priority, url, size, sha256, released, updated, requireLogin, osKeys.
+    priority, url, size, sha256, released, updated, requireLogin, osKeys,
+    readmeUrl, releaseNotes.
     """
     body = driver_data.get("body", driver_data)
     items = body.get("DownloadItems", [])
@@ -125,7 +215,26 @@ def _prepare_webview_data(
             "updated": _epoch_ms_to_date(updated_unix),
             "requireLogin": item.get("RequireLogin", False),
             "osKeys": item.get("OperatingSystemKeys", []),
+            "readmeUrl": _build_readme_url(first_file.get("URL", "N/A")),
+            "releaseNotes": "",
         })
+
+    # Fetch readme release notes concurrently (unless skipped)
+    if not no_readme and readme_client is not None:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_idx = {}
+            for idx, entry in enumerate(drivers):
+                readme_url = entry["readmeUrl"]
+                if readme_url:
+                    future = executor.submit(_fetch_readme_changes, readme_url, readme_client)
+                    future_to_idx[future] = idx
+            for future in concurrent.futures.as_completed(future_to_idx):
+                idx = future_to_idx[future]
+                try:
+                    changes = future.result()
+                    drivers[idx]["releaseNotes"] = changes
+                except Exception:
+                    drivers[idx]["releaseNotes"] = ""
 
     categories = sorted(categories_set)
     product_name = (product_info or {}).get("Name", "Unknown Device")
@@ -161,6 +270,8 @@ def generate_html(
     category_filter: str | None = None,
     priority_filter: str | None = None,
     active_only: bool = False,
+    no_readme: bool = False,
+    readme_client: Any = None,
 ) -> str:
     """Generate a self-contained HTML page with embedded driver data.
 
@@ -175,6 +286,8 @@ def generate_html(
         category_filter=category_filter,
         priority_filter=priority_filter,
         active_only=active_only,
+        no_readme=no_readme,
+        readme_client=readme_client,
     )
 
     data_json = json.dumps(data, default=str)
@@ -195,6 +308,8 @@ def open_webview(
     category_filter: str | None = None,
     priority_filter: str | None = None,
     active_only: bool = False,
+    no_readme: bool = False,
+    readme_client: Any = None,
 ) -> str:
     """Generate an HTML page and open it in the default browser.
 
@@ -209,6 +324,8 @@ def open_webview(
         category_filter=category_filter,
         priority_filter=priority_filter,
         active_only=active_only,
+        no_readme=no_readme,
+        readme_client=readme_client,
     )
 
     # Write to a persistent location (cache dir, not /tmp which may be cleared)
@@ -1075,11 +1192,21 @@ footer {
 
     leftCol.appendChild(detail);
 
-    // Right column (Summary)
+    // Right column (Release Notes or Summary)
     var rightCol = document.createElement("div");
     rightCol.className = "driver-card-right";
 
-    if (d.summary) {
+    if (d.releaseNotes) {
+      var rnLabel = document.createElement("div");
+      rnLabel.className = "summary-label";
+      rnLabel.textContent = "Changes in this release";
+      rightCol.appendChild(rnLabel);
+
+      var rnText = document.createElement("div");
+      rnText.className = "summary-text";
+      rnText.textContent = d.releaseNotes;
+      rightCol.appendChild(rnText);
+    } else if (d.summary) {
       var summaryLabel = document.createElement("div");
       summaryLabel.className = "summary-label";
       summaryLabel.textContent = "Summary";

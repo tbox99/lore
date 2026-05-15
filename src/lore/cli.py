@@ -96,6 +96,7 @@ def lookup(ctx: click.Context, serial: str) -> None:
 @click.option("--priority", "priority_filter", default=None, help="Filter by priority (Critical/Recommended)")
 @click.option("--active-only", is_flag=True, help="Exclude login-required items")
 @click.option("--full-urls", is_flag=True, help="Show full URLs and titles (no truncation)")
+@click.option("--no-readme", is_flag=True, help="Skip fetching release notes from readme pages")
 @click.pass_context
 def drivers(
     ctx: click.Context,
@@ -105,6 +106,7 @@ def drivers(
     priority_filter: str | None,
     active_only: bool,
     full_urls: bool,
+    no_readme: bool,
 ) -> None:
     """List available drivers for a device."""
     client = _make_client(no_cache=ctx.obj["no_cache"], refresh=ctx.obj["refresh"])
@@ -138,6 +140,8 @@ def drivers(
                 category_filter=category_filter,
                 priority_filter=priority_filter,
                 active_only=active_only,
+                no_readme=no_readme,
+                readme_client=client._client if not no_readme else None,
             )
             click.echo(f"Opened driver listing in browser: {html_path}", err=True)
             return
