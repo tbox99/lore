@@ -1562,6 +1562,7 @@ footer {
 
   // ---- Render warranty ----
   function renderWarranty() {
+    console.log("renderWarranty called, currentWarranty:", currentWarranty);
     if (!currentWarranty || Object.keys(currentWarranty).length === 0) {
       warrantyContent.innerHTML = '<div class="no-results">No warranty data available.</div>';
       return;
