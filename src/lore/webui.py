@@ -7,9 +7,12 @@ from pathlib import Path
 from typing import Any
 
 try:
-    import pywebview
+    import webview as pywebview
 except ImportError:
-    pywebview = None
+    try:
+        import pywebview
+    except ImportError:
+        pywebview = None
 
 from .support_client import SupportClient
 
