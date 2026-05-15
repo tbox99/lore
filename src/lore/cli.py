@@ -186,6 +186,15 @@ def warranty(ctx: click.Context, serial: str, country: str, language: str) -> No
 
 
 @main.command()
+def web():
+    """Open LORE in a desktop window (PyWebView GUI)."""
+    from .webui import start_webui
+    rc = start_webui()
+    if rc:
+        raise SystemExit(rc)
+
+
+@main.command()
 @click.argument("serial")
 @click.option("--os", "os_filter", default=None, help="Filter drivers by operating system")
 @click.option("--category", "category_filter", default=None, help="Filter drivers by category")
