@@ -296,33 +296,28 @@ body {
 /* ---- Top Bar ---- */
 .top-bar {
   background: var(--dark-header);
-  height: 60px;
+  padding: 14px 24px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
+  flex-direction: column;
+  justify-content: center;
   position: sticky;
   top: 0;
   z-index: 100;
 }
-.top-bar .logo {
+.top-bar .lore-title {
   font-size: 28px;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: 1px;
   color: #E2231A;
-  font-style: italic;
   user-select: none;
+  line-height: 1.2;
 }
-.top-bar .logo .logo-e {
-  display: inline-block;
-  transform: rotate(-4deg);
-  transform-origin: center center;
-}
-.top-bar .lore-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #FFFFFF;
-  letter-spacing: 2px;
+.top-bar .lore-subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  color: #CCCCCC;
+  letter-spacing: 0.3px;
+  margin-top: 2px;
 }
 
 /* ---- Sub-header ---- */
@@ -624,24 +619,113 @@ footer {
 }
 
 /* ---- Responsive ---- */
-@media (max-width: 600px) {
-  .top-bar { padding: 0 12px; }
-  .top-bar .logo { font-size: 22px; }
-  .top-bar .lore-title { font-size: 13px; }
-  .sub-header { padding: 8px 12px; }
-  .filter-bar { flex-direction: column; align-items: stretch; padding: 10px 12px; }
-  .filter-bar input[type="text"] { min-width: 0; }
-  .driver-meta { margin-left: 0; }
-  .driver-url-row { margin-left: 0; }
-  .driver-detail { margin-left: 0; }
-  footer { margin-left: -12px; margin-right: -12px; padding: 12px; }
+
+/* Wide screens: max-width container, centered */
+@media (min-width: 1200px) {
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+}
+
+/* Desktop (769px+): full layout */
+@media (min-width: 769px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* Tablet (481px–768px) */
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+  .container {
+    padding: 0 16px;
+  }
+  .top-bar {
+    padding: 12px 16px;
+  }
+  .top-bar .lore-title {
+    font-size: 24px;
+  }
+  .top-bar .lore-subtitle {
+    font-size: 12px;
+  }
+  .filter-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .filter-bar input[type="text"] {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+
+/* Mobile (< 480px) */
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+  .container {
+    padding: 0 8px;
+  }
+  .top-bar {
+    padding: 10px 12px;
+  }
+  .top-bar .lore-title {
+    font-size: 20px;
+  }
+  .top-bar .lore-subtitle {
+    font-size: 10px;
+    color: #999999;
+  }
+  .sub-header {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 10px;
+    gap: 6px;
+  }
+  .filter-bar input[type="text"] {
+    min-width: 0;
+    width: 100%;
+  }
+  .filter-btn {
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+  .driver-card {
+    padding: 10px 10px;
+  }
+  .driver-meta {
+    margin-left: 0;
+  }
+  .driver-url-row {
+    margin-left: 0;
+  }
+  .driver-detail {
+    margin-left: 0;
+  }
+  .category-header {
+    font-size: 14px;
+  }
+  footer {
+    margin-left: -8px;
+    margin-right: -8px;
+    padding: 12px;
+  }
 }
 </style>
 </head>
 <body>
 <div class="top-bar">
-  <div class="logo">l<span class="logo-e">e</span>novo</div>
   <div class="lore-title">LORE</div>
+  <div class="lore-subtitle">Lenovo Online Research & Equipment</div>
 </div>
 <div class="sub-header">
   <span>Serial:</span> <span class="serial" id="serial-display"></span>
