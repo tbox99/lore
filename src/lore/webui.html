@@ -374,32 +374,6 @@ body {
 .filter-bar input[type="text"]::placeholder {
   color: var(--text-muted);
 }
-.filter-btn {
-  padding: 6px 14px;
-  border: 1px solid var(--btn-border);
-  border-radius: 4px;
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-}
-.filter-btn:hover {
-  border-color: var(--lenovo-red);
-  color: var(--lenovo-red);
-}
-.filter-btn.active {
-  background: var(--btn-active-bg);
-  color: var(--btn-active-text);
-  border-color: var(--btn-active-bg);
-}
-.filter-btn.active:hover {
-  background: var(--lenovo-dark-red);
-  border-color: var(--lenovo-dark-red);
-  color: #FFFFFF;
-}
 .expand-collapse-btn {
   padding: 6px 14px;
   border: 1px solid var(--btn-border);
@@ -418,36 +392,56 @@ body {
   color: var(--lenovo-red);
 }
 
-/* ---- Category jump links ---- */
-.category-jumps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+/* ---- Filter rows ---- */
+.filter-rows {
   margin-bottom: 12px;
-  padding: 0;
 }
-.category-jumps:empty {
-  display: none;
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
 }
-.category-jump-pill {
+.filter-row:last-child {
+  margin-bottom: 0;
+}
+.filter-row-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  min-width: 76px;
+}
+.filter-pill {
   display: inline-block;
   padding: 4px 12px;
   border-radius: 16px;
   font-size: 12px;
   font-weight: 600;
   background: var(--bg-card);
-  color: var(--text);
+  color: var(--text-muted);
   border: 1px solid var(--border);
   cursor: pointer;
-  text-decoration: none;
   white-space: nowrap;
   transition: all 0.15s ease;
+  user-select: none;
 }
-.category-jump-pill:hover {
-  background: var(--lenovo-red);
-  color: #FFFFFF;
+.filter-pill:hover {
   border-color: var(--lenovo-red);
-  text-decoration: none;
+  color: var(--lenovo-red);
+}
+.filter-pill.active {
+  background: var(--btn-active-bg);
+  color: var(--btn-active-text);
+  border-color: var(--btn-active-bg);
+}
+.filter-pill.active:hover {
+  background: var(--lenovo-dark-red);
+  border-color: var(--lenovo-dark-red);
+  color: #FFFFFF;
 }
 
 /* ---- Category section ---- */
@@ -498,20 +492,20 @@ body {
 .driver-card-collapsed {
   display: flex;
   align-items: center;
-  padding: 8px 14px;
-  gap: 10px;
-  min-height: 38px;
+  padding: 6px 10px;
+  gap: 6px;
+  min-height: 32px;
 }
 .driver-card-collapsed .priority-dot {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1;
 }
 .driver-card-collapsed .collapsed-title {
   flex: 1;
   min-width: 0;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -520,28 +514,22 @@ body {
 .driver-card-collapsed .collapsed-version {
   flex-shrink: 0;
   font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
-  text-align: right;
-  min-width: 70px;
   white-space: nowrap;
 }
 .driver-card-collapsed .collapsed-date {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
-  text-align: right;
-  min-width: 80px;
   white-space: nowrap;
-}
-.driver-card-collapsed .collapsed-badge {
-  flex-shrink: 0;
 }
 .driver-card-collapsed .expand-arrow {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text-muted);
   transition: transform 0.2s ease;
+  opacity: 0.5;
 }
 .driver-card.expanded .expand-arrow {
   transform: rotate(90deg);
@@ -916,10 +904,18 @@ footer {
     min-width: 0;
     width: 100%;
   }
-  .filter-btn {
+  .filter-pill {
     min-height: 44px;
     padding: 8px 14px;
     font-size: 14px;
+  }
+  .filter-row {
+    flex-wrap: wrap;
+  }
+  .filter-row-label {
+    min-width: auto;
+    width: 100%;
+    margin-bottom: 4px;
   }
   .driver-card-collapsed {
     flex-wrap: wrap;
@@ -933,8 +929,7 @@ footer {
     order: 0;
   }
   .driver-card-collapsed .collapsed-version,
-  .driver-card-collapsed .collapsed-date,
-  .driver-card-collapsed .collapsed-badge {
+  .driver-card-collapsed .collapsed-date {
     order: 2;
   }
   .driver-card-expanded-inner {
@@ -958,7 +953,7 @@ footer {
   .category-header {
     font-size: 14px;
   }
-  .category-jump-pill {
+  .filter-pill {
     font-size: 11px;
     padding: 3px 10px;
   }
@@ -1010,14 +1005,22 @@ footer {
 
       <div class="filter-bar">
         <input type="text" id="filter-input" placeholder="Filter drivers by title…">
-        <button class="filter-btn active" data-priority="all">All</button>
-        <button class="filter-btn" data-priority="Critical">Critical</button>
-        <button class="filter-btn" data-priority="Recommended">Recommended</button>
-        <button class="filter-btn" data-priority="Optional">Optional</button>
         <button class="expand-collapse-btn" id="expand-collapse-btn">Expand All</button>
       </div>
 
-      <div class="category-jumps" id="category-jumps"></div>
+      <div class="filter-rows">
+        <div class="filter-row">
+          <span class="filter-row-label">Category</span>
+          <div id="category-filters"></div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-row-label">Priority</span>
+          <span class="filter-pill active" id="priority-all">All</span>
+          <span class="filter-pill" data-priority="Critical">Critical</span>
+          <span class="filter-pill" data-priority="Recommended">Recommended</span>
+          <span class="filter-pill" data-priority="Optional">Optional</span>
+        </div>
+      </div>
 
       <div id="driver-list"></div>
 
@@ -1047,7 +1050,8 @@ footer {
 
   // ---- State ----
   var currentFilter = "";
-  var currentPriority = "all";
+  var activeCategories = {};  // category name -> true if active
+  var activePriorities = {};  // priority name -> true if active
   var expandedCards = {};
   var currentData = null;
   var currentWarranty = null;
@@ -1069,7 +1073,7 @@ footer {
   var driverList = document.getElementById("driver-list");
   var generatedAt = document.getElementById("generated-at");
   var warrantyContent = document.getElementById("warranty-content");
-  var categoryJumps = document.getElementById("category-jumps");
+  var categoryFilters = document.getElementById("category-filters");
   var expandCollapseBtn = document.getElementById("expand-collapse-btn");
 
   // ---- Search ----
@@ -1099,6 +1103,8 @@ footer {
         currentData = result.drivers;
         currentWarranty = result.warranty;
         expandedCards = {};
+        activeCategories = {};
+        activePriorities = {};
         allExpanded = false;
         updateExpandCollapseBtn();
         renderResults(result);
@@ -1125,15 +1131,34 @@ footer {
     renderDrivers();
   });
 
-  // ---- Priority buttons ----
-  document.querySelectorAll(".filter-btn").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      currentPriority = this.getAttribute("data-priority");
-      document.querySelectorAll(".filter-btn").forEach(function(b) { b.classList.remove("active"); });
-      this.classList.add("active");
+  // ---- Priority toggle pills ----
+  var priorityAll = document.getElementById("priority-all");
+  priorityAll.addEventListener("click", function() {
+    activePriorities = {};
+    updatePriorityPillUI();
+    renderDrivers();
+  });
+  document.querySelectorAll("[data-priority]").forEach(function(pill) {
+    pill.addEventListener("click", function() {
+      var pri = this.getAttribute("data-priority");
+      if (activePriorities[pri]) {
+        delete activePriorities[pri];
+      } else {
+        activePriorities[pri] = true;
+      }
+      updatePriorityPillUI();
       renderDrivers();
     });
   });
+
+  function updatePriorityPillUI() {
+    var anyActive = Object.keys(activePriorities).length > 0;
+    priorityAll.classList.toggle("active", !anyActive);
+    document.querySelectorAll("[data-priority]").forEach(function(pill) {
+      var pri = pill.getAttribute("data-priority");
+      pill.classList.toggle("active", !!activePriorities[pri]);
+    });
+  }
 
   // ---- Expand/Collapse All ----
   expandCollapseBtn.addEventListener("click", function() {
@@ -1258,21 +1283,69 @@ footer {
   // ---- Render drivers ----
   function renderDrivers() {
     driverList.innerHTML = "";
-    categoryJumps.innerHTML = "";
+    categoryFilters.innerHTML = "";
     if (!currentData || !currentData.drivers || currentData.drivers.length === 0) {
       driverList.innerHTML = '<div class="no-results">No drivers found.</div>';
       return;
     }
 
+    // Build category filter pills
+    var allCats = {};
+    currentData.drivers.forEach(function(d) {
+      var c = d.category || "Uncategorized";
+      allCats[c] = true;
+    });
+    var sortedCatNames = Object.keys(allCats).sort();
+
+    // "All categories" pill
+    var catAllPill = document.createElement("span");
+    catAllPill.className = "filter-pill" + (Object.keys(activeCategories).length === 0 ? " active" : "");
+    catAllPill.id = "category-all";
+    catAllPill.textContent = "All";
+    catAllPill.addEventListener("click", function() {
+      activeCategories = {};
+      updateCategoryPillUI();
+      renderDrivers();
+    });
+    categoryFilters.appendChild(catAllPill);
+
+    sortedCatNames.forEach(function(cat) {
+      var pill = document.createElement("span");
+      pill.className = "filter-pill" + (activeCategories[cat] ? " active" : "");
+      pill.setAttribute("data-category", cat);
+      pill.textContent = cat;
+      pill.addEventListener("click", function() {
+        if (activeCategories[cat]) {
+          delete activeCategories[cat];
+        } else {
+          activeCategories[cat] = true;
+        }
+        updateCategoryPillUI();
+        renderDrivers();
+      });
+      categoryFilters.appendChild(pill);
+    });
+
+    // Filter drivers
+    var anyCatActive = Object.keys(activeCategories).length > 0;
+    var anyPriActive = Object.keys(activePriorities).length > 0;
+
     var drivers = currentData.drivers.filter(function(d) {
+      // Text filter
       if (currentFilter) {
         var t = (d.title || "").toLowerCase();
         var st = (d.shortTitle || "").toLowerCase();
         if (t.indexOf(currentFilter) === -1 && st.indexOf(currentFilter) === -1) return false;
       }
-      if (currentPriority !== "all") {
-        var pri = (d.priority || "").toLowerCase();
-        if (pri !== currentPriority.toLowerCase()) return false;
+      // Category filter
+      if (anyCatActive) {
+        var c = d.category || "Uncategorized";
+        if (!activeCategories[c]) return false;
+      }
+      // Priority filter
+      if (anyPriActive) {
+        var pri = (d.priority || "");
+        if (!activePriorities[pri]) return false;
       }
       return true;
     });
@@ -1282,6 +1355,7 @@ footer {
       return;
     }
 
+    // Group by category
     var cats = {};
     drivers.forEach(function(d) {
       var c = d.category || "Uncategorized";
@@ -1290,22 +1364,6 @@ footer {
     });
 
     var sortedCats = Object.keys(cats).sort();
-
-    // Build category jump links
-    sortedCats.forEach(function(cat) {
-      var a = document.createElement("a");
-      a.className = "category-jump-pill";
-      a.href = "#cat-" + cat.replace(/[^a-zA-Z0-9]/g, "-");
-      a.textContent = cat;
-      a.addEventListener("click", function(e) {
-        e.preventDefault();
-        var target = document.getElementById("cat-" + cat.replace(/[^a-zA-Z0-9]/g, "-"));
-        if (target) {
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      });
-      categoryJumps.appendChild(a);
-    });
 
     sortedCats.forEach(function(cat) {
       var section = document.createElement("div");
@@ -1336,6 +1394,18 @@ footer {
     });
   }
 
+  function updateCategoryPillUI() {
+    var anyActive = Object.keys(activeCategories).length > 0;
+    var catAllPill = document.getElementById("category-all");
+    if (catAllPill) {
+      catAllPill.classList.toggle("active", !anyActive);
+    }
+    document.querySelectorAll("[data-category]").forEach(function(pill) {
+      var cat = pill.getAttribute("data-category");
+      pill.classList.toggle("active", !!activeCategories[cat]);
+    });
+  }
+
   function createCard(d) {
     var card = document.createElement("div");
     card.className = "driver-card " + priorityCardClass(d.priority);
@@ -1358,10 +1428,6 @@ footer {
     title.className = "collapsed-title";
     title.textContent = d.shortTitle || d.title;
 
-    var badge = document.createElement("span");
-    badge.className = "badge " + priorityClass(d.priority) + " collapsed-badge";
-    badge.textContent = d.priority;
-
     var ver = document.createElement("span");
     ver.className = "collapsed-version";
     ver.textContent = "v" + (d.version || "N/A");
@@ -1376,7 +1442,6 @@ footer {
 
     collapsedRow.appendChild(dot);
     collapsedRow.appendChild(title);
-    collapsedRow.appendChild(badge);
     collapsedRow.appendChild(ver);
     collapsedRow.appendChild(released);
     collapsedRow.appendChild(arrow);
