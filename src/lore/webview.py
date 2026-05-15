@@ -18,6 +18,43 @@ from .output import _short_title, _epoch_ms_to_date
 # Data preparation for the webview
 # ---------------------------------------------------------------------------
 
+def _open_browser_app_mode(url: str) -> bool:
+    """Try to open URL in a browser window without toolbars/tabs.
+    
+    Tries known browsers with --app flag (Chromium/Chrome) or equivalent.
+    Falls back to returning False if no suitable browser found.
+    """
+    import shutil
+    import subprocess
+
+    # Common browser commands that support --app mode (no chrome)
+    app_browsers = [
+        # (command, extra_args)
+        ("google-chrome-stable", ["--app={url}"]),
+        ("google-chrome", ["--app={url}"]),
+        ("chromium", ["--app={url}"]),
+        ("chromium-browser", ["--app={url}"]),
+        ("brave-browser", ["--app={url}"]),
+        ("microsoft-edge", ["--app={url}"]),
+        ("vivaldi", ["--app={url}"]),
+    ]
+
+    for cmd, args_template in app_browsers:
+        if shutil.which(cmd):
+            try:
+                args = [a.format(url=url) for a in args_template]
+                subprocess.Popen(
+                    [cmd] + args,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                return True
+            except (OSError, subprocess.SubprocessError):
+                continue
+
+    return False
+
+
 def _prepare_webview_data(
     driver_data: dict,
     product_info: dict | None = None,
@@ -184,7 +221,11 @@ def open_webview(
     html_path.write_text(html, encoding="utf-8")
 
     url = html_path.as_uri()
-    webbrowser.open(url)
+
+    # Try to open in app/kiosk mode (no browser chrome) via known browsers
+    opened = _open_browser_app_mode(url)
+    if not opened:
+        webbrowser.open(url)
 
     return str(html_path)
 
@@ -288,7 +329,7 @@ body {
 }
 
 .container {
-  max-width: 960px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 0 16px;
 }
@@ -620,10 +661,10 @@ footer {
 
 /* ---- Responsive ---- */
 
-/* Wide screens: max-width container, centered */
+/* Wide screens */
 @media (min-width: 1200px) {
   .container {
-    max-width: 960px;
+    max-width: 100%;
     margin: 0 auto;
   }
 }
