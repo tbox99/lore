@@ -165,6 +165,73 @@ body {
   cursor: pointer;
   transition: background 0.15s ease;
 }
+
+/* ---- Welcome State ---- */
+.welcome-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px 40px;
+  text-align: center;
+}
+.welcome-state.hidden {
+  display: none;
+}
+.welcome-icon {
+  margin-bottom: 24px;
+  opacity: 0.7;
+}
+.welcome-heading {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.welcome-text {
+  font-size: 15px;
+  color: var(--text-muted);
+  max-width: 440px;
+  line-height: 1.5;
+  margin-bottom: 32px;
+}
+.welcome-hints {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.welcome-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 160px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+.welcome-hint-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.welcome-hint-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.welcome-hint-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
 .search-btn:hover {
   background: var(--lenovo-dark-red);
 }
@@ -559,8 +626,9 @@ body {
   white-space: nowrap;
 }
 .driver-card-collapsed .collapsed-spacer {
-  flex: 1;
-  min-width: 8px;
+  flex: 0;
+  min-width: 0;
+  width: 0;
 }
 .driver-card-collapsed .expand-arrow {
   flex-shrink: 0;
@@ -1021,6 +1089,38 @@ footer {
   <button class="search-btn" id="search-btn">Search</button>
 </div>
 
+<div class="welcome-state" id="welcome-state">
+  <div class="welcome-icon">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="16" width="64" height="48" rx="4" stroke="#666" stroke-width="2.5" fill="none"/>
+      <rect x="16" y="24" width="48" height="32" rx="2" fill="#1A1A1A" stroke="#444" stroke-width="1.5"/>
+      <rect x="20" y="28" width="40" height="24" rx="1" fill="#E2231A" opacity="0.15"/>
+      <text x="40" y="44" text-anchor="middle" font-size="12" font-weight="700" fill="#E2231A" font-family="system-ui">LORE</text>
+      <line x1="32" y1="64" x2="48" y2="64" stroke="#666" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="36" y1="68" x2="44" y2="68" stroke="#666" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <div class="welcome-heading">Ready to look up a device?</div>
+  <div class="welcome-text">Enter a serial number or MTM prefix above to retrieve driver, warranty, and product information.</div>
+  <div class="welcome-hints">
+    <div class="welcome-hint">
+      <span class="welcome-hint-icon">🔍</span>
+      <span class="welcome-hint-label">Serial Lookup</span>
+      <span class="welcome-hint-desc">Find any Lenovo device by serial number</span>
+    </div>
+    <div class="welcome-hint">
+      <span class="welcome-hint-icon">🛡️</span>
+      <span class="welcome-hint-label">Warranty Status</span>
+      <span class="welcome-hint-desc">Check coverage and expiration dates</span>
+    </div>
+    <div class="welcome-hint">
+      <span class="welcome-hint-icon">📦</span>
+      <span class="welcome-hint-label">Driver Updates</span>
+      <span class="welcome-hint-desc">Browse and filter available downloads</span>
+    </div>
+  </div>
+</div>
+
 <div class="container">
 
   <div class="error-display" id="error-display"></div>
@@ -1121,6 +1221,7 @@ footer {
   var warrantyContent = document.getElementById("warranty-content");
   var categoryFilters = document.getElementById("category-filters");
   var expandCollapseBtn = document.getElementById("expand-collapse-btn");
+  var welcomeState = document.getElementById("welcome-state");
 
   // ---- Search ----
   searchBtn.addEventListener("click", doSearch);
@@ -1153,6 +1254,7 @@ footer {
         activePriorities = {};
         allExpanded = false;
         updateExpandCollapseBtn();
+        welcomeState.classList.add("hidden");
         renderResults(result);
       })
       .catch(function(err) {
@@ -1239,6 +1341,7 @@ footer {
   function showLoading() {
     loadingEl.classList.add("visible");
     searchBtn.disabled = true;
+    welcomeState.classList.add("hidden");
   }
   function hideLoading() {
     loadingEl.classList.remove("visible");
@@ -1248,6 +1351,7 @@ footer {
     productInfoEl.classList.remove("visible");
     tabBar.classList.remove("visible");
     resultsContainer.classList.remove("visible");
+    welcomeState.classList.remove("hidden");
   }
 
   // ---- Render results ----
