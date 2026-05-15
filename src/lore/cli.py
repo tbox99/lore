@@ -186,12 +186,13 @@ def warranty(ctx: click.Context, serial: str, country: str, language: str) -> No
 
 
 @main.command()
-def web():
-    """Open LORE in a desktop window (PyWebView GUI)."""
+@click.option('--port', default=8199, help='Port for the web UI server')
+def web(port):
+    """Open LORE in a browser window."""
+    import sys
     from .webui import start_webui
-    rc = start_webui()
-    if rc:
-        raise SystemExit(rc)
+    rc = start_webui(port=port)
+    sys.exit(rc)
 
 
 @main.command()

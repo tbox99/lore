@@ -700,6 +700,12 @@ footer {
   align-items: center;
   gap: 4px;
 }
+.server-indicator {
+  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: var(--footer-text);
+  opacity: 0.7;
+}
 
 /* ---- Responsive ---- */
 @media (min-width: 1200px) {
@@ -922,20 +928,22 @@ footer {
     hideResults();
     showLoading();
 
-    window.api.search(serial).then(function(resultJson) {
-      hideLoading();
-      var result = JSON.parse(resultJson);
-      if (!result.success) {
-        showError(result.error || "Unknown error");
-        return;
-      }
-      currentData = result.drivers;
-      currentWarranty = result.warranty;
-      renderResults(result);
-    }).catch(function(err) {
-      hideLoading();
-      showError("Failed to search: " + (err.message || err));
-    });
+    fetch("/api/search?serial=" + encodeURIComponent(serial))
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        hideLoading();
+        if (!result.success) {
+          showError(result.error || "Unknown error");
+          return;
+        }
+        currentData = result.drivers;
+        currentWarranty = result.warranty;
+        renderResults(result);
+      })
+      .catch(function(err) {
+        hideLoading();
+        showError("Network error: " + (err.message || err));
+      });
   }
 
   // ---- Tab switching ----
@@ -1037,22 +1045,29 @@ footer {
   }
 
   function fetchSingleReadme(item) {
-    window.api.get_readme(item.url).then(function(result) {
-      readmeRunning--;
-      if (result) {
-        item.text.style.fontStyle = "";
-        item.text.innerHTML = result;
-      } else if (item.summary) {
-        item.label.textContent = "Summary";
-        item.text.style.fontStyle = "";
-        item.text.textContent = item.summary;
-      } else {
-        item.label.textContent = "";
-        item.text.style.fontStyle = "italic";
-        item.text.textContent = "No description available";
-      }
-      processReadmeQueue();
-    });
+    fetch("/api/readme?url=" + encodeURIComponent(item.url))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        readmeRunning--;
+        var result = data.content;
+        if (result) {
+          item.text.style.fontStyle = "";
+          item.text.innerHTML = result;
+        } else if (item.summary) {
+          item.label.textContent = "Summary";
+          item.text.style.fontStyle = "";
+          item.text.textContent = item.summary;
+        } else {
+          item.label.textContent = "";
+          item.text.style.fontStyle = "italic";
+          item.text.textContent = "No description available";
+        }
+        processReadmeQueue();
+      })
+      .catch(function() {
+        readmeRunning--;
+        processReadmeQueue();
+      });
   }
 
   // ---- Render drivers ----
