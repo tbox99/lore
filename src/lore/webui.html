@@ -1018,6 +1018,43 @@ footer {
     renderWarranty();
   }
 
+  // ---- Readme fetch queue (max 3 concurrent) ----
+  var readmeQueue = [];
+  var readmeRunning = 0;
+  var README_MAX_CONCURRENT = 3;
+
+  function queueReadmeFetch(labelEl, textEl, url, summary) {
+    readmeQueue.push({label: labelEl, text: textEl, url: url, summary: summary});
+    processReadmeQueue();
+  }
+
+  function processReadmeQueue() {
+    while (readmeRunning < README_MAX_CONCURRENT && readmeQueue.length > 0) {
+      var item = readmeQueue.shift();
+      readmeRunning++;
+      fetchSingleReadme(item);
+    }
+  }
+
+  function fetchSingleReadme(item) {
+    window.api.get_readme(item.url).then(function(result) {
+      readmeRunning--;
+      if (result) {
+        item.text.style.fontStyle = "";
+        item.text.innerHTML = result;
+      } else if (item.summary) {
+        item.label.textContent = "Summary";
+        item.text.style.fontStyle = "";
+        item.text.textContent = item.summary;
+      } else {
+        item.label.textContent = "";
+        item.text.style.fontStyle = "italic";
+        item.text.textContent = "No description available";
+      }
+      processReadmeQueue();
+    });
+  }
+
   // ---- Render drivers ----
   function renderDrivers() {
     driverList.innerHTML = "";
@@ -1206,6 +1243,23 @@ footer {
       rnText.className = "changes-text";
       rnText.innerHTML = d.releaseNotes;
       rightCol.appendChild(rnText);
+    } else if (d.readmeUrl) {
+      // Readme URL available but not yet fetched — load async
+      var rnLabel = document.createElement("div");
+      rnLabel.className = "changes-label";
+      rnLabel.textContent = "Changes in this release";
+      rightCol.appendChild(rnLabel);
+
+      var rnText = document.createElement("div");
+      rnText.className = "changes-text";
+      rnText.textContent = "Loading...";
+      rnText.style.fontStyle = "italic";
+      rightCol.appendChild(rnText);
+
+      // Fetch readme via queue (rate-limited)
+      (function(label, textEl, url, sum) {
+        queueReadmeFetch(label, textEl, url, sum);
+      })(rnLabel, rnText, d.readmeUrl, d.summary);
     } else if (d.summary) {
       var summaryLabel = document.createElement("div");
       summaryLabel.className = "changes-label";

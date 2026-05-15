@@ -60,14 +60,14 @@ class LoreApi:
                 except Exception:
                     warranty = {}
 
-            # Prepare webview data (reuse existing logic for formatting + readme fetching)
+            # Prepare webview data (no readme fetching — too slow for interactive use)
             from .webview import _prepare_webview_data
 
             webview_data = _prepare_webview_data(
                 driver_data,
                 product_info=product,
                 serial=serial,
-                readme_client=self._client._client,
+                no_readme=True,
             )
 
             result = {
@@ -86,14 +86,27 @@ class LoreApi:
             return json.dumps({"success": False, "error": str(e)})
 
     def get_readme(self, readme_url: str) -> str:
-        """Fetch release notes for a single driver readme URL."""
-        try:
-            from .webview import _fetch_readme_changes
+        """Fetch release notes for a single driver readme URL.
 
-            changes = _fetch_readme_changes(readme_url, self._client._client)
-            return changes
-        except Exception:
-            return ""
+        Runs in a background thread to avoid blocking the UI.
+        """
+        import threading
+        result_holder = {"value": ""}
+        done = threading.Event()
+
+        def _fetch():
+            try:
+                from .webview import _fetch_readme_changes
+                result_holder["value"] = _fetch_readme_changes(readme_url, self._client._client)
+            except Exception:
+                result_holder["value"] = ""
+            done.set()
+
+        t = threading.Thread(target=_fetch, daemon=True)
+        t.start()
+        # Wait up to 8 seconds
+        done.wait(timeout=8.0)
+        return result_holder["value"]
 
 
 def start_webui() -> int:
