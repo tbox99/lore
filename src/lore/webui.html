@@ -727,6 +727,12 @@ body {
   align-items: center;
   gap: 6px;
 }
+.driver-url-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
 .driver-url {
   color: var(--text-link);
   text-decoration: none;
@@ -1649,6 +1655,11 @@ footer {
     var urlRow = document.createElement("div");
     urlRow.className = "driver-url-row";
 
+    // Download link
+    var dlLabel = document.createElement("span");
+    dlLabel.className = "driver-url-label";
+    dlLabel.textContent = "Download:";
+
     var a = document.createElement("a");
     a.className = "driver-url";
     a.href = d.url;
@@ -1665,9 +1676,43 @@ footer {
       copyToClipboard(d.url, copyBtn);
     });
 
+    urlRow.appendChild(dlLabel);
     urlRow.appendChild(a);
     urlRow.appendChild(copyBtn);
+
+    // Readme link
+    if (d.readmeUrl) {
+      var rmRow = document.createElement("div");
+      rmRow.className = "driver-url-row";
+
+      var rmLabel = document.createElement("span");
+      rmLabel.className = "driver-url-label";
+      rmLabel.textContent = "Readme:";
+
+      var rmA = document.createElement("a");
+      rmA.className = "driver-url";
+      rmA.href = d.readmeUrl;
+      rmA.target = "_blank";
+      rmA.rel = "noopener";
+      rmA.textContent = d.readmeUrl;
+
+      var rmCopyBtn = document.createElement("button");
+      rmCopyBtn.className = "copy-btn";
+      rmCopyBtn.textContent = "\ud83d\udccb";
+      rmCopyBtn.title = "Copy URL";
+      rmCopyBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        copyToClipboard(d.readmeUrl, rmCopyBtn);
+      });
+
+      rmRow.appendChild(rmLabel);
+      rmRow.appendChild(rmA);
+      rmRow.appendChild(rmCopyBtn);
+    }
     leftCol.appendChild(urlRow);
+    if (d.readmeUrl) {
+      leftCol.appendChild(rmRow);
+    }
 
     var detail = document.createElement("div");
     detail.className = "driver-detail visible";
