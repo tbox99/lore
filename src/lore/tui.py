@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -19,26 +21,75 @@ from .output import _short_title, _epoch_ms_to_date, _group_by_category, _priori
 # Clipboard helper
 # ---------------------------------------------------------------------------
 
-def _copy_to_clipboard(text: str) -> bool:
-    """Copy text to system clipboard. Returns True on success."""
-    # Try xclip (X11), xsel (X11), wl-copy (Wayland), pbcopy (macOS), clip.exe (WSL)
-    commands = [
-        ["xclip", "-selection", "clipboard"],
-        ["xsel", "--clipboard", "--input"],
-        ["wl-copy"],
-        ["pbcopy"],
-        ["clip.exe"],
-    ]
-    for cmd in commands:
-        try:
-            result = subprocess.run(
-                cmd, input=text.encode(), capture_output=True, timeout=3,
-            )
-            if result.returncode == 0:
-                return True
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
-    return False
+def _copy_to_clipboard(text: str) -> tuple[bool, str]:
+    """Copy text to clipboard. Returns (success, message)."""
+    # 1. tmux buffer (works inside tmux without X/Wayland)
+    try:
+        result = subprocess.run(
+            ["tmux", "load-buffer", "-"],
+            input=text.encode(), capture_output=True, timeout=3,
+        )
+        if result.returncode == 0:
+            return True, "Copied to tmux buffer"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # 2. xclip (X11)
+    try:
+        result = subprocess.run(
+            ["xclip", "-selection", "clipboard"],
+            input=text.encode(), capture_output=True, timeout=3,
+        )
+        if result.returncode == 0:
+            return True, "Copied to clipboard (xclip)"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # 3. xsel (X11)
+    try:
+        result = subprocess.run(
+            ["xsel", "--clipboard", "--input"],
+            input=text.encode(), capture_output=True, timeout=3,
+        )
+        if result.returncode == 0:
+            return True, "Copied to clipboard (xsel)"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # 4. wl-copy (Wayland)
+    try:
+        result = subprocess.run(
+            ["wl-copy"],
+            input=text.encode(), capture_output=True, timeout=3,
+        )
+        if result.returncode == 0:
+            return True, "Copied to clipboard (wl-copy)"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # 5. pbcopy (macOS)
+    try:
+        result = subprocess.run(
+            ["pbcopy"],
+            input=text.encode(), capture_output=True, timeout=3,
+        )
+        if result.returncode == 0:
+            return True, "Copied to clipboard (pbcopy)"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # 6. Fallback: write to tempfile and show path
+    try:
+        tmp = tempfile.NamedTemporaryFile(
+            prefix="lore_", suffix=".txt", delete=False, mode="w",
+        )
+        tmp.write(text)
+        tmp.close()
+        return True, f"Saved to {tmp.name}"
+    except Exception:
+        pass
+
+    return False, "No clipboard available"
 
 
 # ---------------------------------------------------------------------------
@@ -174,11 +225,12 @@ def _priority_dot(priority: str) -> str:
 def _format_url_display(url: str, full: bool = False) -> str:
     """Format URL for display. 
     
-    Default (non-full): strip https:// prefix, show rest as-is.
-    Full: show complete URL.
+    Always strip https:// prefix for readability.
+    With full=True, show complete URL.
     """
     if full:
         return url
+    # Always strip protocol prefix for display
     return url.removeprefix("https://").removeprefix("http://")
 
 
@@ -210,12 +262,12 @@ class DriverItem(Static):
         height: auto;
     }
     DriverItem:focus {
-        background: $primary 15%;
-        color: $text;
-        border-left: tall $primary;
+        background: #1a3a5c;
+        color: #e0e0e0;
+        border-left: tall #4a9eff;
     }
     DriverItem:hover {
-        background: $primary 8%;
+        background: #0d1f30;
     }
     DriverItem .driver-title {
         padding: 0;
@@ -287,11 +339,11 @@ class DriverItem(Static):
         except Exception:
             pass
 
-    def copy_url(self) -> bool:
+    def copy_url(self) -> tuple[bool, str]:
         """Copy the download URL to clipboard."""
         return _copy_to_clipboard(self.entry.url)
 
-    def copy_all(self) -> bool:
+    def copy_all(self) -> tuple[bool, str]:
         """Copy all driver details as text to clipboard."""
         e = self.entry
         text = (
@@ -503,19 +555,15 @@ class LoreDriversApp(App):
         """Copy URL of focused driver to clipboard."""
         focused = self.focused
         if isinstance(focused, DriverItem):
-            if focused.copy_url():
-                self._show_copy_notification("✓ URL copied to clipboard")
-            else:
-                self._show_copy_notification("⚠ Clipboard not available")
+            ok, msg = focused.copy_url()
+            self._show_copy_notification(f"✓ {msg}" if ok else f"⚠ {msg}")
 
     def action_copy_all(self) -> None:
         """Copy all details of focused driver to clipboard."""
         focused = self.focused
         if isinstance(focused, DriverItem):
-            if focused.copy_all():
-                self._show_copy_notification("✓ All details copied to clipboard")
-            else:
-                self._show_copy_notification("⚠ Clipboard not available")
+            ok, msg = focused.copy_all()
+            self._show_copy_notification(f"✓ {msg}" if ok else f"⚠ {msg}")
 
     def _show_copy_notification(self, message: str) -> None:
         """Show a brief copy notification that auto-removes."""
