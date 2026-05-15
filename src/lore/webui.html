@@ -172,59 +172,43 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 24px 40px;
+  padding: 80px 24px 60px;
   text-align: center;
 }
 .welcome-state.hidden {
   display: none;
 }
 .welcome-icon {
-  margin-bottom: 24px;
-  opacity: 0.7;
+  margin-bottom: 28px;
+  opacity: 0.8;
 }
 .welcome-heading {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .welcome-text {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-muted);
-  max-width: 440px;
   line-height: 1.5;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
-.welcome-hints {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-.welcome-hint {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 160px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-card);
-}
-.welcome-hint-icon {
-  font-size: 28px;
-  margin-bottom: 8px;
-}
-.welcome-hint-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-.welcome-hint-desc {
-  font-size: 12px;
+.welcome-example {
+  font-size: 14px;
   color: var(--text-muted);
-  line-height: 1.4;
+}
+.welcome-example-sn {
+  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-weight: 600;
+  color: var(--lenovo-red);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(226, 35, 26, 0.08);
+}
+.welcome-example-sn:hover {
+  background: rgba(226, 35, 26, 0.15);
 }
   border-radius: 4px;
   font-size: 15px;
@@ -563,7 +547,7 @@ body {
   display: flex;
   align-items: center;
   padding: 5px 10px;
-  gap: 8px;
+  gap: 10px;
   min-height: 30px;
 }
 .driver-card-collapsed .priority-dot {
@@ -572,7 +556,7 @@ body {
   line-height: 1;
 }
 .driver-card-collapsed .collapsed-title {
-  flex-shrink: 1;
+  flex: 1;
   min-width: 0;
   font-weight: 600;
   font-size: 13px;
@@ -612,23 +596,23 @@ body {
   border-radius: 3px;
   white-space: nowrap;
 }
-.driver-card-collapsed .collapsed-version {
+.driver-card-collapsed .collapsed-meta {
   flex-shrink: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+.driver-card-collapsed .collapsed-version {
   font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 11px;
   color: var(--text-muted);
-  white-space: nowrap;
 }
 .driver-card-collapsed .collapsed-date {
-  flex-shrink: 0;
   font-size: 11px;
   color: var(--text-muted);
-  white-space: nowrap;
+  margin-left: 8px;
 }
 .driver-card-collapsed .collapsed-spacer {
-  flex: 0;
-  min-width: 0;
-  width: 0;
+  display: none;
 }
 .driver-card-collapsed .expand-arrow {
   flex-shrink: 0;
@@ -1037,8 +1021,7 @@ footer {
   }
   .driver-card-collapsed .collapsed-badge,
   .driver-card-collapsed .collapsed-os-badge,
-  .driver-card-collapsed .collapsed-version,
-  .driver-card-collapsed .collapsed-date {
+  .driver-card-collapsed .collapsed-meta {
     order: 2;
   }
   .driver-card-collapsed .collapsed-spacer {
@@ -1091,34 +1074,19 @@ footer {
 
 <div class="welcome-state" id="welcome-state">
   <div class="welcome-icon">
-    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="8" y="16" width="64" height="48" rx="4" stroke="#666" stroke-width="2.5" fill="none"/>
-      <rect x="16" y="24" width="48" height="32" rx="2" fill="#1A1A1A" stroke="#444" stroke-width="1.5"/>
-      <rect x="20" y="28" width="40" height="24" rx="1" fill="#E2231A" opacity="0.15"/>
-      <text x="40" y="44" text-anchor="middle" font-size="12" font-weight="700" fill="#E2231A" font-family="system-ui">LORE</text>
-      <line x1="32" y1="64" x2="48" y2="64" stroke="#666" stroke-width="2.5" stroke-linecap="round"/>
-      <line x1="36" y1="68" x2="44" y2="68" stroke="#666" stroke-width="2" stroke-linecap="round"/>
+    <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="24" width="90" height="64" rx="6" stroke="#999" stroke-width="2" fill="none"/>
+      <rect x="22" y="30" width="76" height="52" rx="3" fill="#1A1A1A" stroke="#555" stroke-width="1.5"/>
+      <rect x="28" y="36" width="64" height="40" rx="2" fill="#E2231A" opacity="0.12"/>
+      <text x="60" y="62" text-anchor="middle" font-size="18" font-weight="800" fill="#E2231A" font-family="system-ui">LORE</text>
+      <line x1="42" y1="88" x2="78" y2="88" stroke="#999" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="48" y1="94" x2="72" y2="94" stroke="#999" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="60" cy="100" r="2" fill="#666"/>
     </svg>
   </div>
   <div class="welcome-heading">Ready to look up a device?</div>
-  <div class="welcome-text">Enter a serial number or MTM prefix above to retrieve driver, warranty, and product information.</div>
-  <div class="welcome-hints">
-    <div class="welcome-hint">
-      <span class="welcome-hint-icon">🔍</span>
-      <span class="welcome-hint-label">Serial Lookup</span>
-      <span class="welcome-hint-desc">Find any Lenovo device by serial number</span>
-    </div>
-    <div class="welcome-hint">
-      <span class="welcome-hint-icon">🛡️</span>
-      <span class="welcome-hint-label">Warranty Status</span>
-      <span class="welcome-hint-desc">Check coverage and expiration dates</span>
-    </div>
-    <div class="welcome-hint">
-      <span class="welcome-hint-icon">📦</span>
-      <span class="welcome-hint-label">Driver Updates</span>
-      <span class="welcome-hint-desc">Browse and filter available downloads</span>
-    </div>
-  </div>
+  <div class="welcome-text">Enter a serial number or MTM prefix in the search bar above.</div>
+  <div class="welcome-example">Try: <span class="welcome-example-sn" id="example-sn">PF4SQLH9</span></div>
 </div>
 
 <div class="container">
@@ -1222,6 +1190,13 @@ footer {
   var categoryFilters = document.getElementById("category-filters");
   var expandCollapseBtn = document.getElementById("expand-collapse-btn");
   var welcomeState = document.getElementById("welcome-state");
+  var exampleSn = document.getElementById("example-sn");
+  if (exampleSn) {
+    exampleSn.addEventListener("click", function() {
+      serialInput.value = this.textContent;
+      doSearch();
+    });
+  }
 
   // ---- Search ----
   searchBtn.addEventListener("click", doSearch);
@@ -1607,20 +1582,21 @@ footer {
     released.className = "collapsed-date";
     released.textContent = d.released || "N/A";
 
-    var spacer = document.createElement("span");
-    spacer.className = "collapsed-spacer";
+    // Meta container: version + date, right-aligned
+    var meta = document.createElement("span");
+    meta.className = "collapsed-meta";
+    meta.appendChild(ver);
+    meta.appendChild(released);
 
     var arrow = document.createElement("span");
     arrow.className = "expand-arrow";
-    arrow.textContent = "\u25B6"; // ▶
+    arrow.textContent = "\u25B6"; // \u25b6
 
     collapsedRow.appendChild(dot);
     collapsedRow.appendChild(title);
     collapsedRow.appendChild(badge);
     collapsedRow.appendChild(osBadge);
-    collapsedRow.appendChild(ver);
-    collapsedRow.appendChild(released);
-    collapsedRow.appendChild(spacer);
+    collapsedRow.appendChild(meta);
     collapsedRow.appendChild(arrow);
 
     card.appendChild(collapsedRow);
