@@ -19,13 +19,23 @@ Works on **Windows**, **Linux**, and **macOS**. Python only, no browser required
 
 ## Installation
 
-### From Source
+### Linux / macOS
 
 ```bash
-git clone https://github.com/user/lore.git
+git clone https://github.com/tbox99/lore.git
 cd lore
-pip install .
+./install.sh
 ```
+
+### Windows
+
+```powershell
+git clone https://github.com/tbox99/lore.git
+cd lore
+.\install.ps1
+```
+
+Requires Python 3.10+ (check "Add Python to PATH" during installation).
 
 ### pipx (planned)
 
