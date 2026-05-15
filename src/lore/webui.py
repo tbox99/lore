@@ -68,32 +68,31 @@ class LoreRequestHandler(BaseHTTPRequestHandler):
                 return json.dumps({"success": False, "error": "Please enter a serial number"})
 
             client = SupportClient()
+            warranty: dict = {}
+            driver_data: dict = {}
+            products: list = []
 
-            # Fetch product info
+            # All API calls in a single session
             with client:
                 products = client.lookup_product(serial)
 
-            if not products:
-                return json.dumps({"success": False, "error": f"No products found for serial: {serial}"})
+                if not products:
+                    return json.dumps({"success": False, "error": f"No products found for serial: {serial}"})
 
-            product = products[0]
-            product_path = product.get("Id", "")
+                product = products[0]
+                product_path = product.get("Id", "")
 
-            # Fetch drivers (no readme — will be fetched on demand)
-            driver_data: dict = {}
-            if product_path:
-                with client:
+                # Fetch drivers (no readme — will be fetched on demand)
+                if product_path:
                     driver_data = client.get_drivers(product_path)
 
-            # Fetch warranty
-            warranty: dict = {}
-            machine_type = SupportClient.extract_machine_type(product)
-            if machine_type:
-                try:
-                    with client:
+                # Fetch warranty
+                machine_type = SupportClient.extract_machine_type(product)
+                if machine_type:
+                    try:
                         warranty = client.get_warranty(serial, machine_type)
-                except Exception:
-                    warranty = {}
+                    except Exception:
+                        warranty = {}
 
             # Prepare webview data (NO readme fetching)
             from .webview import _prepare_webview_data
