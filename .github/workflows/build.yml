@@ -4,8 +4,6 @@ on:
   push:
     branches: [main]
     tags: ['v*']
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -44,30 +42,6 @@ jobs:
           releaseDraft: true
           prerelease: false
 
-      - name: Get version from tauri.conf.json
-        id: version
-        run: |
-          VERSION=$(grep '"version"' src-tauri/tauri.conf.json | head -1 | sed 's/.*:.*"\([^"]*\)".*/\1/')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Upload Linux binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: LORE-${{ steps.version.outputs.version }}-linux-x64
-          path: src-tauri/target/release/lore
-
-      - name: Upload AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: LORE-${{ steps.version.outputs.version }}-x86_64-AppImage
-          path: src-tauri/target/release/bundle/appimage/LORE_*_amd64.AppImage
-
-      - name: Upload deb
-        uses: actions/upload-artifact@v4
-        with:
-          name: LORE-${{ steps.version.outputs.version }}-amd64-deb
-          path: src-tauri/target/release/bundle/deb/LORE_*_amd64.deb
-
   build-windows:
     runs-on: windows-latest
     steps:
@@ -95,20 +69,23 @@ jobs:
           releaseDraft: true
           prerelease: false
 
-      - name: Get version from tauri.conf.json
+      - name: Get version
         id: version
         shell: pwsh
         run: |
           $json = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
           echo "version=$($json.version)" >> $env:GITHUB_OUTPUT
 
-      - name: Rename portable exe with version
-        shell: pwsh
-        run: |
-          Copy-Item "src-tauri/target/release/LORE.exe" "src-tauri/target/release/LORE-${{ steps.version.outputs.version }}-portable-x64.exe"
+      - name: Upload portable exe as release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: src-tauri/target/release/LORE.exe
+          name: LORE-${{ steps.version.outputs.version }}-portable-x64.exe
 
-      - name: Upload portable exe
+      - name: Upload portable exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: LORE-${{ steps.version.outputs.version }}-portable-windows-x64
-          path: src-tauri/target/release/LORE-${{ steps.version.outputs.version }}-portable-x64.exe
+          path: src-tauri/target/release/LORE.exe
