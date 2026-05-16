@@ -1884,7 +1884,7 @@ footer {
   // ---- Render warranty ----
   function renderWarranty() {
     if (!currentWarranty || Object.keys(currentWarranty).length === 0) {
-      warrantyContent.innerHTML = '<div class="no-results">No warranty data available.</div>';
+      warrantyContent.innerHTML = '<div class="no-results">Warranty information could not be loaded. This may be due to a Lenovo service outage or maintenance window. Please try again later.</div>';
       return;
     }
 
