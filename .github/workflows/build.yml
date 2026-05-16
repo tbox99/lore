@@ -76,16 +76,21 @@ jobs:
           $json = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
           echo "version=$($json.version)" >> $env:GITHUB_OUTPUT
 
+      - name: Rename portable exe with version
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          Copy-Item "src-tauri/target/release/LORE.exe" "src-tauri/target/release/LORE-${version}-portable-x64.exe"
+
       - name: Upload portable exe as release asset
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          files: src-tauri/target/release/LORE.exe
-          name: LORE-${{ steps.version.outputs.version }}-portable-x64.exe
+          files: src-tauri/target/release/LORE-${{ steps.version.outputs.version }}-portable-x64.exe
 
       - name: Upload portable exe as artifact
         uses: actions/upload-artifact@v4
         with:
           name: LORE-${{ steps.version.outputs.version }}-portable-windows-x64
-          path: src-tauri/target/release/LORE.exe
+          path: src-tauri/target/release/LORE-${{ steps.version.outputs.version }}-portable-x64.exe
