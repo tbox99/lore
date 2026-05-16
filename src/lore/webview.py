@@ -33,13 +33,13 @@ def _open_browser_app_mode(url: str) -> bool:
     # Common browser commands that support --app mode (no chrome)
     app_browsers = [
         # (command, extra_args)
-        ("google-chrome-stable", ["--app={url}", "--window-size=800,550"]),
-        ("google-chrome", ["--app={url}", "--window-size=800,550"]),
-        ("chromium", ["--app={url}", "--window-size=800,550"]),
-        ("chromium-browser", ["--app={url}", "--window-size=800,550"]),
-        ("brave-browser", ["--app={url}", "--window-size=800,550"]),
-        ("microsoft-edge", ["--app={url}", "--window-size=800,550"]),
-        ("vivaldi", ["--app={url}", "--window-size=800,550"]),
+        ("google-chrome-stable", ["--app={url}", "--window-size=1200,800"]),
+        ("google-chrome", ["--app={url}", "--window-size=1200,800"]),
+        ("chromium", ["--app={url}", "--window-size=1200,800"]),
+        ("chromium-browser", ["--app={url}", "--window-size=1200,800"]),
+        ("brave-browser", ["--app={url}", "--window-size=1200,800"]),
+        ("microsoft-edge", ["--app={url}", "--window-size=1200,800"]),
+        ("vivaldi", ["--app={url}", "--window-size=1200,800"]),
     ]
 
     for cmd, args_template in app_browsers:
@@ -619,7 +619,7 @@ body {
 }
 
 .container {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 0 16px;
 }
@@ -1003,7 +1003,7 @@ footer {
 /* Wide screens */
 @media (min-width: 1200px) {
   .container {
-    max-width: 800px;
+    max-width: 1200px;
     margin: 0 auto;
   }
 }
@@ -1109,7 +1109,7 @@ footer {
 }
 </style>
 </head>
-<body onload="try{window.resizeTo(800,550)}catch(e){}">
+<body onload="try{window.resizeTo(1200,800)}catch(e){}">
 <div class="top-bar">
   <div class="lore-title">LORE</div>
   <div class="lore-subtitle">Lenovo Online Research & Equipment</div>
