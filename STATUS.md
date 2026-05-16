@@ -1,64 +1,69 @@
 # LORE — Project Status
 
-## Current Phase: Phase 1 — Core CLI (Nearly Complete)
+## Current Phase: v1.0.0 — Tauri Desktop App
 
-### What Works (Verified 2026-05-15)
+### Architecture
 
-| API | Status | Auth | Notes |
-|-----|--------|------|-------|
-| Product Lookup (serial) | ✅ Working | None | Returns product name, type, path, image |
-| Product Lookup (MTM prefix) | ✅ Working | None | Returns machine type list |
-| Driver Listing | ✅ Working | None | Grouped by category, sorted by priority |
-| Warranty Info | ✅ Working | Session cookie | Cookie from simple GET, no login |
+- **Frontend**: Single-file `index.html` (original webui.html preserved), Tauri `invoke()` with HTTP fallback
+- **Backend**: Rust (reqwest, session cookies, retry/backoff, disk caching)
+- **Packaging**: Tauri 2.0 — binary, .deb, .rpm, AppImage (Linux), .msi/.exe (Windows)
+- **CI**: GitHub Actions (Linux + Windows), private repo, `permissions: contents: write`
 
-### Test Serial
-- `PF4SQLH9` — ThinkPad T14s Gen 4 (Type 21F8, 21F9) - Type 21F9 (21F9S05T00)
+### What Works
 
-### Key Findings
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Product Lookup (serial/MTM) | ✅ | Tauri command `search` |
+| Driver Listing | ✅ | Cards with expand/collapse, category/priority filters |
+| Release Notes (lazy load) | ✅ | `fetch_readme` command, max 3 concurrent |
+| Disk Caching | ✅ | 1h product, 6h drivers, 24h warranty |
+| NVIDIA/WebKitGTK workaround | ✅ | Set in Rust `run()` before GTK init |
+| AppImage | ✅ | Works on IPL-PC-NEXUS (Arch, NVIDIA) |
+| Linux binary | ✅ | 15MB, needs webkit2gtk-4.1 + gtk3 |
+| Windows CI build | 🔄 | GitHub Actions running |
+| Warranty tab | ⚠️ | Code correct, but Lenovo API under maintenance May 16-17 |
 
-1. **Product path derivation**: Serial lookup returns `Id` field which is the full product path used for driver queries
-2. **MachineType extraction**: Warranty API needs `machineType` (e.g., "21F9") — extract from product `Name` or `Id` path segment
-3. **Session cookie flow**: GET `pcsupport.lenovo.com` → extract `Lenovo_SessionID` cookie → use in warranty POST
-4. **Driver data is rich**: Each item has title, version, download URL, SHA1/SHA256/MD5, size, OS keys, category, priority, country list
-5. **Warranty data includes specs**: HTML table with CPU, RAM, storage, display, etc.
-6. **No rate limiting detected** on any endpoint (but should handle gracefully)
+### Build Artifacts (Linux)
 
-### Phase 1 Checklist
+- Binary: `src-tauri/target/release/lore` (15MB)
+- AppImage: `src-tauri/target/release/bundle/appimage/LORE-x86_64.AppImage` (92MB)
+- .deb: `src-tauri/target/release/bundle/deb/LORE_1.0.0_amd64.deb` (5.5MB)
+- .rpm: `src-tauri/target/release/bundle/rpm/LORE-1.0.0-1.x86_64.rpm` (5.5MB)
 
-| Item | Status |
-|------|--------|
-| pyproject.toml + package structure | ✅ Done |
-| SupportClient (product, drivers, warranty) | ✅ Done |
-| Session cookie management | ✅ Done |
-| MachineType extraction | ✅ Done |
-| CLI: `lore lookup` | ✅ Done |
-| CLI: `lore drivers` (with filtering) | ✅ Done |
-| CLI: `lore warranty` | ✅ Done |
-| CLI: `lore report` | ✅ Done |
-| Rich table output (per-category grouped) | ✅ Done |
-| JSON output | ✅ Done |
-| Plain/no-color output | ✅ Done |
-| Persistent caching with TTL | ✅ Done |
-| Retry/backoff for 429/5xx | ✅ Done |
-| Tests with fixtures | ✅ Done (54 passing) |
-| GitHub-ready files (README, LICENSE, etc.) | ✅ Done |
+### Git Tags
 
-### Open Questions
+- `v0.1.0-python` — Legacy Python version (preserved)
+- `v1.0.0` — Current Tauri release
 
-- Driver listing for MTM-only (no serial) — does it work? Need to test
-- Session cookie TTL — how long before expiry? Need to observe
-- Rate limits — none hit, but should implement defensive backoff
-- Country/locale impact on driver availability
+### Key Files
 
-## Roadmap
+- `src/index.html` — Full UI (single-file, dark theme)
+- `src/app.js` — Vite entry (just imports styles.css)
+- `src/styles.css` — Minimal (styles inline in index.html)
+- `src-tauri/src/lib.rs` — Tauri commands + WebKitGTK workarounds
+- `src-tauri/src/client.rs` — Lenovo API client
+- `src-tauri/src/cache.rs` — Disk cache with TTL
+- `src-tauri/tauri.conf.json` — Window 1200×1400, CSP enabled, NSIS DE/EN
 
-### Phase 2: PSREF Integration
-- [ ] Import/adapt psref_client from lenovo-psref-analyzer
-- [ ] Unified lookup showing PSREF specs + Support data
-- [ ] Shared CLI entry point
-- [ ] Migrate lenovo-psref-analyzer users
+### Test Machine
 
-### Phase 3: Polish
-- [ ] pipx/pip installable package (publish to PyPI)
-- [ ] CI/testing setup (GitHub Actions)
-- [ ] Shell completions
+- IPL-PC-NEXUS (192.168.178.56), Arch Linux, NVIDIA GPU
+- SCP: `scp lore thomasb@192.168.178.56:/home/thomasb/Downloads/`
+
+### Open Items
+
+- [ ] Retest warranty tab after Lenovo maintenance ends (May 17 ~13:00 MEZ)
+- [ ] Test Windows build from CI
+- [ ] Verify all functionality on NEXUS (search, readme fetch, filters, expand/collapse)
+- [ ] Consider proper CSP hardening for production
+
+### Completed (2026-05-16)
+
+- ✅ Rebuilt all packages with all fixes applied
+- ✅ Cleaned up debug artifacts (test.html, unused imports)
+- ✅ Enabled CSP (was null)
+- ✅ Rewrote README (installation, architecture, Linux requirements)
+- ✅ Created GitHub Actions CI (Linux + Windows)
+- ✅ Fixed CI permission error (private repo needs `contents: write`)
+- ✅ Added versioned Windows portable exe to CI
+- ✅ Tagged v1.0.0, deleted v0.2.0-tauri
