@@ -1164,6 +1164,7 @@ footer {
 
 </div>
 
+<script type="module" src="/app.js"></script>
 <script>
 (function() {
   "use strict";
@@ -1220,28 +1221,57 @@ footer {
     hideResults();
     showLoading();
 
-    fetch("/api/search?serial=" + encodeURIComponent(serial))
-      .then(function(r) { return r.json(); })
-      .then(function(result) {
-        hideLoading();
-        if (!result.success) {
-          showError(result.error || "Unknown error");
-          return;
-        }
-        currentData = result.drivers;
-        currentWarranty = result.warranty;
-        expandedCards = {};
-        activeCategories = {};
-        activePriorities = {};
-        allExpanded = false;
-        updateExpandCollapseBtn();
-        welcomeState.classList.add("hidden");
-        renderResults(result);
-      })
-      .catch(function(err) {
-        hideLoading();
-        showError("Network error: " + (err.message || err));
-      });
+    var __tauri = null;
+    try { __tauri = window.__TAURI__; } catch(e) {}
+
+    if (__tauri) {
+      // Tauri desktop app
+      __tauri.core.invoke("search", { serial: serial })
+        .then(function(result) {
+          hideLoading();
+          if (!result.success) {
+            showError(result.error || "Unknown error");
+            return;
+          }
+          currentData = result.drivers;
+          currentWarranty = result.warranty;
+          expandedCards = {};
+          activeCategories = {};
+          activePriorities = {};
+          allExpanded = false;
+          updateExpandCollapseBtn();
+          welcomeState.classList.add("hidden");
+          renderResults(result);
+        })
+        .catch(function(err) {
+          hideLoading();
+          showError("Error: " + (err.message || err));
+        });
+    } else {
+      // Fallback: HTTP fetch for browser mode
+      fetch("/api/search?serial=" + encodeURIComponent(serial))
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+          hideLoading();
+          if (!result.success) {
+            showError(result.error || "Unknown error");
+            return;
+          }
+          currentData = result.drivers;
+          currentWarranty = result.warranty;
+          expandedCards = {};
+          activeCategories = {};
+          activePriorities = {};
+          allExpanded = false;
+          updateExpandCollapseBtn();
+          welcomeState.classList.add("hidden");
+          renderResults(result);
+        })
+        .catch(function(err) {
+          hideLoading();
+          showError("Network error: " + (err.message || err));
+        });
+    }
   }
 
   // ---- Tab switching ----
@@ -1385,30 +1415,58 @@ footer {
     }
   }
 
+  var __tauri = null;
+  try { __tauri = window.__TAURI__; } catch(e) {}
+
   function fetchSingleReadme(item) {
-    fetch("/api/readme?url=" + encodeURIComponent(item.url))
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        readmeRunning--;
-        var result = data.content;
-        if (result) {
-          item.text.style.fontStyle = "";
-          item.text.innerHTML = result;
-        } else if (item.summary) {
-          item.label.textContent = "Summary";
-          item.text.style.fontStyle = "";
-          item.text.textContent = item.summary;
-        } else {
-          item.label.textContent = "";
-          item.text.style.fontStyle = "italic";
-          item.text.textContent = "No description available";
-        }
-        processReadmeQueue();
-      })
-      .catch(function() {
-        readmeRunning--;
-        processReadmeQueue();
-      });
+    if (__tauri) {
+      __tauri.core.invoke("fetch_readme", { url: item.url })
+        .then(function(data) {
+          readmeRunning--;
+          var result = data.content;
+          if (result) {
+            item.text.style.fontStyle = "";
+            item.text.innerHTML = result;
+          } else if (item.summary) {
+            item.label.textContent = "Summary";
+            item.text.style.fontStyle = "";
+            item.text.textContent = item.summary;
+          } else {
+            item.label.textContent = "";
+            item.text.style.fontStyle = "italic";
+            item.text.textContent = "No description available";
+          }
+          processReadmeQueue();
+        })
+        .catch(function() {
+          readmeRunning--;
+          processReadmeQueue();
+        });
+    } else {
+      fetch("/api/readme?url=" + encodeURIComponent(item.url))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          readmeRunning--;
+          var result = data.content;
+          if (result) {
+            item.text.style.fontStyle = "";
+            item.text.innerHTML = result;
+          } else if (item.summary) {
+            item.label.textContent = "Summary";
+            item.text.style.fontStyle = "";
+            item.text.textContent = item.summary;
+          } else {
+            item.label.textContent = "";
+            item.text.style.fontStyle = "italic";
+            item.text.textContent = "No description available";
+          }
+          processReadmeQueue();
+        })
+        .catch(function() {
+          readmeRunning--;
+          processReadmeQueue();
+        });
+    }
   }
 
   // ---- Render drivers ----
@@ -1558,7 +1616,7 @@ footer {
 
     var dot = document.createElement("span");
     dot.className = "priority-dot";
-    dot.textContent = priorityDot(d.priority);
+    dot.innerHTML = priorityDot(d.priority);
 
     var title = document.createElement("span");
     title.className = "collapsed-title";
@@ -1623,7 +1681,7 @@ footer {
 
     var dot2 = document.createElement("span");
     dot2.className = "priority-dot";
-    dot2.textContent = priorityDot(d.priority);
+    dot2.innerHTML = priorityDot(d.priority);
 
     var title2 = document.createElement("span");
     title2.className = "driver-card-title";
@@ -1669,7 +1727,7 @@ footer {
 
     var copyBtn = document.createElement("button");
     copyBtn.className = "copy-btn";
-    copyBtn.textContent = "\ud83d\udccb";
+    copyBtn.textContent = "[copy]";
     copyBtn.title = "Copy URL";
     copyBtn.addEventListener("click", function(e) {
       e.stopPropagation();
@@ -1698,7 +1756,7 @@ footer {
 
       var rmCopyBtn = document.createElement("button");
       rmCopyBtn.className = "copy-btn";
-      rmCopyBtn.textContent = "\ud83d\udccb";
+      rmCopyBtn.textContent = "[copy]";
       rmCopyBtn.title = "Copy URL";
       rmCopyBtn.addEventListener("click", function(e) {
         e.stopPropagation();
@@ -1924,9 +1982,9 @@ footer {
 
   function priorityDot(pri) {
     var p = (pri || "").toLowerCase();
-    if (p === "critical") return "\ud83d\udd34";
-    if (p === "recommended") return "\ud83d\udfe1";
-    return "\u26aa";
+    if (p === "critical") return '<span style="color:#E2231A;font-size:10px">●</span>';
+    if (p === "recommended") return '<span style="color:#FFB900;font-size:10px">●</span>';
+    return '<span style="color:#888;font-size:10px">●</span>';
   }
 
   function escHtml(s) {
@@ -1940,7 +1998,7 @@ footer {
       btn.textContent = "\u2713";
       btn.classList.add("copied");
       setTimeout(function() {
-        btn.textContent = "\ud83d\udccb";
+        btn.textContent = "[copy]";
         btn.classList.remove("copied");
       }, 1500);
     }).catch(function() {
@@ -1955,7 +2013,7 @@ footer {
       btn.textContent = "\u2713";
       btn.classList.add("copied");
       setTimeout(function() {
-        btn.textContent = "\ud83d\udccb";
+        btn.textContent = "[copy]";
         btn.classList.remove("copied");
       }, 1500);
     });

@@ -35,3 +35,9 @@ Thumbs.db
 *.log
 deploy_key
 deploy_key.pub
+
+# Node/Tauri
+node_modules/
+dist/
+target/
+src-tauri/target/
