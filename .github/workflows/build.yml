@@ -67,3 +67,9 @@ jobs:
           releaseBody: 'See the assets below to download and install LORE.'
           releaseDraft: true
           prerelease: false
+
+      - name: Upload portable exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: LORE-portable-windows-x64
+          path: src-tauri/target/release/LORE.exe
