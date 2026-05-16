@@ -15,11 +15,15 @@ Works on **Windows** and **Linux** as a native desktop app. No Python, no termin
 
 ### Linux (Arch, Debian, Fedora)
 
-**AppImage** (recommended — no install needed):
+**Binary** (recommended for Arch):
 ```bash
-chmod +x LORE-x86_64.AppImage
-./LORE-x86_64.AppImage
+# Copy to a location in your PATH
+sudo cp lore /usr/local/bin/
+lore
 ```
+
+> The binary automatically applies WebKitGTK workarounds for NVIDIA GPUs.
+> Requires: `webkit2gtk-4.1` and `gtk3` (`sudo pacman -S webkit2gtk-4.1 gtk3` on Arch)
 
 **Debian/Ubuntu:**
 ```bash
@@ -29,11 +33,6 @@ sudo dpkg -i LORE_1.0.0_amd64.deb
 **Fedora/RHEL:**
 ```bash
 sudo rpm -i LORE-1.0.0-1.x86_64.rpm
-```
-
-**Binary only** (any Linux):
-```bash
-sudo cp lore /usr/local/bin/
 ```
 
 ### Linux System Requirements
@@ -124,7 +123,6 @@ npm run tauri build    # Production build
 | Binary | `src-tauri/target/release/lore` |
 | Debian | `src-tauri/target/release/bundle/deb/LORE_1.0.0_amd64.deb` |
 | RPM | `src-tauri/target/release/bundle/rpm/LORE-1.0.0-1.x86_64.rpm` |
-| AppImage | `src-tauri/target/release/bundle/appimage/LORE-x86_64.AppImage` |
 | Windows MSI | `src-tauri/target/release/bundle/msi/LORE_1.0.0_x64_en-US.msi` |
 
 ## Features
