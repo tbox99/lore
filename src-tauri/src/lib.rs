@@ -5,7 +5,7 @@ pub mod client;
 
 use client::SupportClient;
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, State};
+use tauri::State;
 use tokio::sync::Mutex;
 
 // ---------------------------------------------------------------------------

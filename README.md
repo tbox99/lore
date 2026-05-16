@@ -11,6 +11,48 @@ Works on **Windows** and **Linux** as a native desktop app. No Python, no termin
 - **Warranty Info** — Check warranty status, coverage dates, and remaining duration
 - **On-demand Release Notes** — Fetch and display driver release notes from Lenovo readme pages
 
+## Installation
+
+### Linux (Arch, Debian, Fedora)
+
+**AppImage** (recommended — no install needed):
+```bash
+chmod +x LORE-x86_64.AppImage
+./LORE-x86_64.AppImage
+```
+
+**Debian/Ubuntu:**
+```bash
+sudo dpkg -i LORE_1.0.0_amd64.deb
+```
+
+**Fedora/RHEL:**
+```bash
+sudo rpm -i LORE-1.0.0-1.x86_64.rpm
+```
+
+**Binary only** (any Linux):
+```bash
+sudo cp lore /usr/local/bin/
+```
+
+### Linux System Requirements
+
+- `webkit2gtk-4.1` — required for the webview renderer
+- `gtk3` — required for the window framework
+
+On Arch Linux: `sudo pacman -S webkit2gtk-4.1 gtk3`
+
+> **Note:** On systems with NVIDIA GPUs, LORE automatically sets
+> `WEBKIT_DISABLE_COMPOSITING_MODE=1`, `WEBKIT_DISABLE_DMABUF_RENDERER=1`,
+> and `GDK_BACKEND=x11` to avoid known WebKitGTK rendering issues.
+
+### Windows
+
+1. Download the `.msi` or `.exe` installer from releases
+2. Run the installer — WebView2 is bundled or auto-installed
+3. Launch LORE from the Start Menu or desktop shortcut
+
 ## Architecture
 
 LORE is built as a **Tauri 2.0 desktop app**:
@@ -24,17 +66,19 @@ LORE is built as a **Tauri 2.0 desktop app**:
 ```
 lore/
 ├── src/                    # Frontend (HTML/CSS/JS)
-│   ├── index.html          # Main UI
-│   ├── styles.css          # Dark theme styles
-│   └── app.js              # Frontend logic (Tauri invoke)
+│   ├── index.html          # Main UI (single-file, original webui.html)
+│   ├── styles.css          # Vite entry point (styles are inline in index.html)
+│   └── app.js              # Vite entry point (logic is inline in index.html)
 ├── src-tauri/              # Rust backend (Tauri)
 │   ├── Cargo.toml          # Rust dependencies
 │   ├── build.rs            # Tauri build script
 │   ├── tauri.conf.json     # Tauri config (window, security, bundling)
+│   ├── capabilities/       # Tauri v2 permission capabilities
 │   ├── icons/              # App icons (PNG, ICO)
 │   └── src/
-│       ├── main.rs         # Tauri entry + commands
-│       ├── client.rs       # Lenovo API client (reqwest, caching)
+│       ├── main.rs         # Entry point
+│       ├── lib.rs          # Tauri commands + WebKitGTK workarounds
+│       ├── client.rs       # Lenovo API client (reqwest, session cookies, retry)
 │       └── cache.rs        # Disk-based cache with TTL
 ├── package.json            # Node frontend tooling (Vite)
 ├── vite.config.js          # Vite config for Tauri
@@ -49,7 +93,7 @@ lore/
 | `fetch_readme(url)` | Fetch and parse a driver readme page |
 | `clear_cache()` | Clear the disk cache |
 
-### API Endpoints (preserved from Python)
+### API Endpoints
 
 - **Product Lookup**: `GET https://pcsupport.lenovo.com/api/v4.0/mse/getproducts?productId={serial}`
 - **Driver Listing**: `GET https://pcsupport.lenovo.com/api/v4.0/downloads/drivers?productId={path}`
@@ -62,26 +106,26 @@ lore/
 - **Rust** 1.70+ (`rustup`)
 - **Node.js** 18+ and npm
 - System dependencies:
-  - **Linux**: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`, `libssl-dev`
-  - **Windows**: WebView2 (usually pre-installed on Windows 10+)
+  - **Linux**: `webkit2gtk-4.1`, `gtk3`, `libappindicator3`, `librsvg2-dev`, `libssl-dev`
+  - **Windows**: WebView2 (pre-installed on Windows 10+)
 
 ### Setup
 
 ```bash
-# Install frontend dependencies
 npm install
-
-# Run in development mode
-npm run tauri dev
-
-# Build for production
-npm run tauri build
+npm run tauri dev      # Development mode with hot reload
+npm run tauri build    # Production build
 ```
 
-### Build Targets
+### Build Artifacts
 
-- **Windows**: `.msi` and `.exe` (NSIS) installers
-- **Linux**: `.deb` and `.AppImage`
+| Target | Path |
+|--------|------|
+| Binary | `src-tauri/target/release/lore` |
+| Debian | `src-tauri/target/release/bundle/deb/LORE_1.0.0_amd64.deb` |
+| RPM | `src-tauri/target/release/bundle/rpm/LORE-1.0.0-1.x86_64.rpm` |
+| AppImage | `src-tauri/target/release/bundle/appimage/LORE-x86_64.AppImage` |
+| Windows MSI | `src-tauri/target/release/bundle/msi/LORE_1.0.0_x64_en-US.msi` |
 
 ## Features
 
@@ -89,11 +133,14 @@ npm run tauri build
 - **Card-based driver listing** with expand/collapse details
 - **Priority badges** (Critical, Recommended, Optional) with color coding
 - **Category filtering** with pill-style buttons
+- **Priority filtering** (Critical, Recommended, Optional)
 - **Text search** across driver titles
-- **One-click URL copy** for driver downloads
-- **Release notes** fetched on demand with concurrent loading
+- **Expand/Collapse All** toggle for driver cards
+- **One-click URL copy** for download and readme links
+- **Release notes** fetched on demand with concurrent loading (max 3)
 - **Warranty tab** with machine info, base/upgrade warranties, and status badges
 - **Disk caching** (1h product, 6h drivers, 24h warranty) for fast repeat lookups
+- **NVIDIA/WebKitGTK compatibility** — automatic workarounds for Linux GPU issues
 
 ## Legacy Python Version
 
@@ -101,6 +148,12 @@ The original Python CLI/TUI/WebUI version is preserved as tag `v0.1.0-python`.
 
 ```bash
 git checkout v0.1.0-python  # View legacy Python code
+```
+
+To uninstall the Python version:
+```bash
+rm -rf ~/.local/share/lore/
+rm -f ~/.local/bin/lore
 ```
 
 ## License
