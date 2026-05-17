@@ -2,7 +2,6 @@ name: Build LORE
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
@@ -11,6 +10,7 @@ permissions:
 
 jobs:
   build-linux:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +31,30 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Extract release notes
+        id: release_notes
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="$VERSION" node <<'NODE'
+          const fs = require('fs');
+          const version = process.env.VERSION;
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8').split(/\r?\n/);
+          const start = changelog.findIndex((line) => line.trim() === `## [${version}] — 2026-05-17` || line.trim().startsWith(`## [${version}]`));
+          let body = 'See the assets below to download and install LORE.';
+          if (start >= 0) {
+            let end = changelog.length;
+            for (let i = start + 1; i < changelog.length; i += 1) {
+              if (changelog[i].startsWith('## [')) {
+                end = i;
+                break;
+              }
+            }
+            body = changelog.slice(start + 1, end).join('\n').trim() || body;
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `body<<RELEASE_NOTES\n${body}\nRELEASE_NOTES\n`);
+          NODE
+
       - name: Build Tauri app (Linux)
         uses: tauri-apps/tauri-action@v0
         env:
@@ -38,11 +62,12 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'LORE ${{ github.ref_name }}'
-          releaseBody: 'See the assets below to download and install LORE.'
+          releaseBody: ${{ steps.release_notes.outputs.body }}
           releaseDraft: true
           prerelease: false
 
   build-windows:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +83,30 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Extract release notes
+        id: release_notes
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="$VERSION" node <<'NODE'
+          const fs = require('fs');
+          const version = process.env.VERSION;
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8').split(/\r?\n/);
+          const start = changelog.findIndex((line) => line.trim() === `## [${version}] — 2026-05-17` || line.trim().startsWith(`## [${version}]`));
+          let body = 'See the assets below to download and install LORE.';
+          if (start >= 0) {
+            let end = changelog.length;
+            for (let i = start + 1; i < changelog.length; i += 1) {
+              if (changelog[i].startsWith('## [')) {
+                end = i;
+                break;
+              }
+            }
+            body = changelog.slice(start + 1, end).join('\n').trim() || body;
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `body<<RELEASE_NOTES\n${body}\nRELEASE_NOTES\n`);
+          NODE
+
       - name: Build Tauri app (Windows)
         uses: tauri-apps/tauri-action@v0
         env:
@@ -65,7 +114,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'LORE ${{ github.ref_name }}'
-          releaseBody: 'See the assets below to download and install LORE.'
+          releaseBody: ${{ steps.release_notes.outputs.body }}
           releaseDraft: true
           prerelease: false
 
