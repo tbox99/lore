@@ -3,7 +3,9 @@
 //! Uses reqwest for HTTP and a simple DiskCache for caching.
 //! Methods are async and designed to run within Tauri's tokio runtime.
 
-use crate::cache::{CacheError, DiskCache, TTL_DRIVERS, TTL_PRODUCT, TTL_README, TTL_SESSION, TTL_WARRANTY};
+use crate::cache::{
+    CacheError, DiskCache, TTL_DRIVERS, TTL_PRODUCT, TTL_README, TTL_SESSION, TTL_WARRANTY,
+};
 use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, CONTENT_TYPE, COOKIE, REFERER, USER_AGENT};
 use serde_json::Value;
@@ -62,9 +64,18 @@ impl SupportClient {
     pub fn new() -> Self {
         let mut headers = HeaderMap::new();
         headers.insert(USER_AGENT, HeaderValue::from_static(user_agent_str()));
-        headers.insert(ACCEPT, HeaderValue::from_static("application/json, text/plain, */*"));
-        headers.insert("Accept-Language", HeaderValue::from_static("en-US,en;q=0.9"));
-        headers.insert(REFERER, HeaderValue::from_static("https://pcsupport.lenovo.com/"));
+        headers.insert(
+            ACCEPT,
+            HeaderValue::from_static("application/json, text/plain, */*"),
+        );
+        headers.insert(
+            "Accept-Language",
+            HeaderValue::from_static("en-US,en;q=0.9"),
+        );
+        headers.insert(
+            REFERER,
+            HeaderValue::from_static("https://pcsupport.lenovo.com/"),
+        );
 
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
@@ -97,7 +108,8 @@ impl SupportClient {
         method: reqwest::Method,
         url: &str,
     ) -> Result<reqwest::Response, ClientError> {
-        self.request_with_retry_and_body(method, url, None, None).await
+        self.request_with_retry_and_body(method, url, None, None)
+            .await
     }
 
     async fn request_with_retry_and_body(
@@ -137,13 +149,22 @@ impl SupportClient {
                         } else {
                             RETRY_BACKOFF_SECS * 2u64.pow(attempt)
                         };
-                        log::warn!("429 rate-limited, retrying in {}s (attempt {})", wait, attempt + 1);
+                        log::warn!(
+                            "429 rate-limited, retrying in {}s (attempt {})",
+                            wait,
+                            attempt + 1
+                        );
                         tokio::time::sleep(Duration::from_secs(wait)).await;
                         continue;
                     }
                     if status.as_u16() >= 500 {
                         let wait = RETRY_BACKOFF_SECS * 2u64.pow(attempt);
-                        log::warn!("5xx error {}, retrying in {}s (attempt {})", status, wait, attempt + 1);
+                        log::warn!(
+                            "5xx error {}, retrying in {}s (attempt {})",
+                            status,
+                            wait,
+                            attempt + 1
+                        );
                         tokio::time::sleep(Duration::from_secs(wait)).await;
                         continue;
                     }
@@ -151,14 +172,21 @@ impl SupportClient {
                 }
                 Err(e) => {
                     let wait = RETRY_BACKOFF_SECS * 2u64.pow(attempt);
-                    log::warn!("Network error, retrying in {}s (attempt {}): {}", wait, attempt + 1, e);
+                    log::warn!(
+                        "Network error, retrying in {}s (attempt {}): {}",
+                        wait,
+                        attempt + 1,
+                        e
+                    );
                     last_err = Some(e);
                     tokio::time::sleep(Duration::from_secs(wait)).await;
                 }
             }
         }
 
-        Err(last_err.map(ClientError::Http).unwrap_or(ClientError::MaxRetries))
+        Err(last_err
+            .map(ClientError::Http)
+            .unwrap_or(ClientError::MaxRetries))
     }
 
     async fn cached_get(
@@ -175,19 +203,14 @@ impl SupportClient {
             }
         }
 
-        let query_string: String = params
-            .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
-            .collect::<Vec<_>>()
-            .join("&");
-        let full_url = if query_string.is_empty() {
-            url.to_string()
-        } else {
-            format!("{}?{}", url, query_string)
-        };
+        let mut full_url = reqwest::Url::parse(url)
+            .map_err(|e| ClientError::Other(format!("Invalid URL {}: {}", url, e)))?;
+        full_url
+            .query_pairs_mut()
+            .extend_pairs(params.iter().copied());
 
         let resp = self
-            .request_with_retry(reqwest::Method::GET, &full_url)
+            .request_with_retry(reqwest::Method::GET, full_url.as_str())
             .await?;
 
         let status = resp.status();
@@ -213,9 +236,9 @@ impl SupportClient {
         {
             let cookie = self.session_cookie.lock().unwrap();
             let ts = self.session_cookie_ts.lock().unwrap();
-            if let (Some(ref c), Some(t)) = (cookie.as_ref(), ts.as_ref()) {
+            if let (Some(c), Some(t)) = (cookie.as_ref(), ts.as_ref()) {
                 if t.elapsed().as_secs() < TTL_SESSION {
-                    return Ok((*c).clone());
+                    return Ok(c.clone());
                 }
             }
         }
@@ -283,8 +306,13 @@ impl SupportClient {
     pub async fn get_drivers(&self, product_path: &str) -> Result<Value, ClientError> {
         let cache_key = format!("drivers:{}", product_path);
         let url = format!("{}/downloads/drivers", BASE_URL);
-        self.cached_get(&cache_key, &url, TTL_DRIVERS, &[("productId", product_path)])
-            .await
+        self.cached_get(
+            &cache_key,
+            &url,
+            TTL_DRIVERS,
+            &[("productId", product_path)],
+        )
+        .await
     }
 
     /// Retrieve warranty info for a device.
@@ -313,9 +341,18 @@ impl SupportClient {
 
             let mut extra_headers = HeaderMap::new();
             extra_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-            extra_headers.insert(ACCEPT, HeaderValue::from_static("application/json, text/plain, */*"));
-            extra_headers.insert("Origin", HeaderValue::from_static("https://pcsupport.lenovo.com"));
-            extra_headers.insert(REFERER, HeaderValue::from_static("https://pcsupport.lenovo.com/us/en/warrantylookup"));
+            extra_headers.insert(
+                ACCEPT,
+                HeaderValue::from_static("application/json, text/plain, */*"),
+            );
+            extra_headers.insert(
+                "Origin",
+                HeaderValue::from_static("https://pcsupport.lenovo.com"),
+            );
+            extra_headers.insert(
+                REFERER,
+                HeaderValue::from_static("https://pcsupport.lenovo.com/us/en/warrantylookup"),
+            );
             extra_headers.insert(
                 COOKIE,
                 HeaderValue::from_str(&format!("Lenovo_SessionID={}", session_id))
@@ -445,20 +482,26 @@ impl SupportClient {
     }
 }
 
+impl Default for SupportClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Readme parsing (port of Python _extract_changes_section)
 // ---------------------------------------------------------------------------
 
 fn extract_changes_section(html_text: &str) -> String {
     let changes_pattern = Regex::new(
-        r#"(?i)<button[^>]*class="collapsible"[^>]*>\s*Changes\s+in\s+(?:This|the)\s*Release\s*<"#
-    ).unwrap();
+        r#"(?i)<button[^>]*class="collapsible"[^>]*>\s*Changes\s+in\s+(?:This|the)\s*Release\s*<"#,
+    )
+    .unwrap();
 
     if let Some(changes_match) = changes_pattern.find(html_text) {
         let after_button = &html_text[changes_match.end()..];
-        let card_pattern = Regex::new(
-            r#"(?s)<div\s+class="card\s+card-body"[^>]*>(.*?)</div>\s*</div>"#
-        ).unwrap();
+        let card_pattern =
+            Regex::new(r#"(?s)<div\s+class="card\s+card-body"[^>]*>(.*?)</div>\s*</div>"#).unwrap();
 
         if let Some(card_match) = card_pattern.captures(after_button) {
             let content_html = card_match.get(1).unwrap().as_str();
@@ -483,8 +526,14 @@ fn extract_changes_section(html_text: &str) -> String {
 
     if let Some(start) = start_idx {
         let stop_patterns = [
-            Regex::new(r"(?i)^\s*(Determining|Installing|Installation|Manual Install|Unattended)\b").unwrap(),
-            Regex::new(r"(?i)^\s*\d+\.\s+(Hold|Select|Press|Make|Open|Locate|Double|Type|Click|Follow)\b").unwrap(),
+            Regex::new(
+                r"(?i)^\s*(Determining|Installing|Installation|Manual Install|Unattended)\b",
+            )
+            .unwrap(),
+            Regex::new(
+                r"(?i)^\s*\d+\.\s+(Hold|Select|Press|Make|Open|Locate|Double|Type|Click|Follow)\b",
+            )
+            .unwrap(),
         ];
 
         let section_lines: Vec<String> = lines[start + 1..]
@@ -504,7 +553,7 @@ fn extract_changes_section(html_text: &str) -> String {
 
         if !section_lines.is_empty() {
             return parse_changes_lines(
-                &section_lines.iter().map(|s| s.as_str()).collect::<Vec<_>>()
+                &section_lines.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
             );
         }
     }
@@ -514,14 +563,26 @@ fn extract_changes_section(html_text: &str) -> String {
 
 fn html_to_lines(html_text: &str) -> Vec<String> {
     let mut text = html_text.to_string();
-    text = Regex::new(r"</p>").unwrap().replace_all(&text, "\n").to_string();
-    text = Regex::new(r"(?i)<br\s*/?>").unwrap().replace_all(&text, "\n").to_string();
-    text = Regex::new(r"<[^>]+>").unwrap().replace_all(&text, "").to_string();
+    text = Regex::new(r"</p>")
+        .unwrap()
+        .replace_all(&text, "\n")
+        .to_string();
+    text = Regex::new(r"(?i)<br\s*/?>")
+        .unwrap()
+        .replace_all(&text, "\n")
+        .to_string();
+    text = Regex::new(r"<[^>]+>")
+        .unwrap()
+        .replace_all(&text, "")
+        .to_string();
     text = text.replace("&nbsp;", " ");
     text = text.replace("&amp;", "&");
     text = text.replace("&lt;", "<");
     text = text.replace("&gt;", ">");
-    text.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect()
+    text.lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect()
 }
 
 fn parse_changes_lines(lines: &[&str]) -> String {
@@ -565,7 +626,10 @@ fn parse_changes_lines(lines: &[&str]) -> String {
         if let Some(t) = title {
             html_parts.push(format!("<strong>{}</strong>", esc_html(t)));
         }
-        let lis: Vec<String> = items.iter().map(|it| format!("<li>{}</li>", esc_html(it))).collect();
+        let lis: Vec<String> = items
+            .iter()
+            .map(|it| format!("<li>{}</li>", esc_html(it)))
+            .collect();
         html_parts.push(format!("<ul>\n{}\n</ul>", lis.join("\n")));
     }
 

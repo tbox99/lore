@@ -8,16 +8,17 @@ Works on **Windows** and **Linux** as a native desktop app. No terminal, no brow
 
 - **Serial/MTM Lookup** — identify any Lenovo device by serial number or machine type model prefix
 - **Guided Browse by Product** — drill down through Lenovo's product categories (Laptops, Desktops, Workstations, Tablets, Monitors, Accessories, Chromebooks) to find your device
-- **Breadcrumb navigation** — Category → Series → SubSeries → Machine Type
+- **Browse navigation** — Category → Series → SubSeries → Machine Type, with breadcrumb links and mouse back-button support
 - **Driver Listing** — browse drivers, BIOS updates, and software with grid layout and sorting
 - **Driver sorting** — by Priority, Newest first, or Oldest first
 - **OS filtering** — quick-filter by Windows 10 / Windows 11 with color-coded badges
 - **Priority badges** — Critical (red), Recommended (yellow), Optional (grey)
 - **Category filtering** — pill-style category buttons
-- **On-demand Release Notes** — fetch and display driver release notes from Lenovo
+- **On-demand Release Notes** — fetch and display driver release notes from allowlisted Lenovo readme URLs
 - **One-click URL copy** — clipboard icon for download and readme links
 - **Warranty Info** — check warranty status, coverage dates, and remaining duration
 - **Dark mode** — Lenovo red accent, card-based layout, responsive design
+- **Visible app version** — current release shown in the app footer
 - **Disk caching** — 1h product, 6h drivers, 24h warranty TTL for fast repeat lookups
 - **NVIDIA/WebKitGTK compatibility** — automatic workarounds for Linux GPU issues
 
@@ -27,18 +28,18 @@ Works on **Windows** and **Linux** as a native desktop app. No terminal, no brow
 
 **AppImage** (recommended — no install needed):
 ```bash
-chmod +x LORE_1.1.0_amd64.AppImage
-./LORE_1.1.0_amd64.AppImage
+chmod +x LORE_1.1.1_amd64.AppImage
+./LORE_1.1.1_amd64.AppImage
 ```
 
 **Debian/Ubuntu:**
 ```bash
-sudo dpkg -i LORE_1.1.0_amd64.deb
+sudo dpkg -i LORE_1.1.1_amd64.deb
 ```
 
 **Fedora/RHEL:**
 ```bash
-sudo rpm -i LORE-1.1.0-1.x86_64.rpm
+sudo rpm -i LORE-1.1.1-1.x86_64.rpm
 ```
 
 **Binary** (Arch or custom setups):
@@ -69,7 +70,7 @@ A portable `.exe` is also available in Releases for running without installation
 LORE is a **Tauri 2.0 desktop app**:
 
 - **Frontend**: HTML/CSS/JS (single-file UI, dark theme, Lenovo red accent)
-- **Backend**: Rust (Lenovo API calls, caching, release note parsing)
+- **Backend**: Rust (Lenovo API calls, caching, release note parsing, Lenovo URL validation)
 - **Packaging**: Native installers for Windows (`.msi`/`.exe`) and Linux (`.deb`/`.rpm`/AppImage)
 
 ### Project Structure
@@ -114,6 +115,12 @@ npm run build:appimage  # AppImage-only build
 ```
 
 > On Arch Linux, `npm run build:all` and `npm run build:appimage` automatically apply workarounds for `linuxdeploy` incompatibilities (old bundled `strip` and missing `gdk-pixbuf` directory).
+
+### Security and Robustness
+
+- Release note fetching is restricted to Lenovo readme hosts: `download.lenovo.com` and `pcsupport.lenovo.com`.
+- Lenovo API query parameters are URL-encoded by the HTTP client.
+- Backend Lenovo requests can run concurrently without a global application-level client lock.
 
 ## Disclaimer
 

@@ -2,6 +2,22 @@
 
 All notable changes to LORE will be documented in this file.
 
+## [1.1.1] — 2026-05-17
+
+### Changed
+
+- Release note fetching now only accepts Lenovo readme URLs from download.lenovo.com and pcsupport.lenovo.com.
+- Lenovo API query parameters are URL-encoded through the HTTP client instead of being concatenated manually.
+- Backend Lenovo requests no longer hold a global application mutex for the full network request duration.
+- The app footer now shows the current LORE version dynamically from Tauri, integrated into the driver footer on result pages.
+- Workstations browse now covers ThinkStation C, D, E, P, and S series; Tablets and Accessories use real Lenovo subcategory keys instead of empty root stubs.
+- Driver OS badges now also use OS metadata from Lenovo file entries, which fixes missing badge coloring for monitor drivers.
+- Product browse now supports the mouse back button for stepping back one category level.
+
+### Fixed
+
+- Rust formatting and Clippy warnings are clean for the current backend checks.
+
 ## [1.1.0] — 2026-05-17
 
 ### Added

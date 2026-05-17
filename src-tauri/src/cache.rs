@@ -4,6 +4,7 @@ use regex::Regex;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::SystemTime;
 
 // ---------------------------------------------------------------------------
@@ -34,19 +35,21 @@ pub enum CacheError {
 
 pub struct DiskCache {
     cache_dir: PathBuf,
+    lock: Mutex<()>,
 }
 
 impl DiskCache {
     pub fn new(cache_dir: Option<&Path>) -> Self {
-        let cache_dir = cache_dir
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| {
-                dirs::cache_dir()
-                    .unwrap_or_else(|| PathBuf::from("/tmp"))
-                    .join("lore")
-            });
+        let cache_dir = cache_dir.map(|p| p.to_path_buf()).unwrap_or_else(|| {
+            dirs::cache_dir()
+                .unwrap_or_else(|| PathBuf::from("/tmp"))
+                .join("lore")
+        });
         let _ = fs::create_dir_all(&cache_dir);
-        Self { cache_dir }
+        Self {
+            cache_dir,
+            lock: Mutex::new(()),
+        }
     }
 
     fn path_for_key(&self, key: &str) -> PathBuf {
@@ -56,6 +59,7 @@ impl DiskCache {
     }
 
     pub fn get(&self, key: &str, ttl: u64) -> Option<Value> {
+        let _guard = self.lock.lock().ok()?;
         let p = self.path_for_key(key);
         let metadata = fs::metadata(&p).ok()?;
         let modified = metadata.modified().ok()?;
@@ -70,6 +74,7 @@ impl DiskCache {
     }
 
     pub fn set(&self, key: &str, value: &Value) -> Result<(), CacheError> {
+        let _guard = self.lock.lock().unwrap();
         let p = self.path_for_key(key);
         let content = serde_json::to_string(value)?;
         fs::write(&p, content)?;
@@ -77,6 +82,7 @@ impl DiskCache {
     }
 
     pub fn clear(&self) -> Result<(), CacheError> {
+        let _guard = self.lock.lock().unwrap();
         let entries = fs::read_dir(&self.cache_dir)?;
         for entry in entries {
             let entry = entry?;

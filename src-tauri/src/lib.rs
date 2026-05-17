@@ -4,17 +4,17 @@ pub mod cache;
 pub mod client;
 
 use client::SupportClient;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::State;
-use tokio::sync::Mutex;
 
 // ---------------------------------------------------------------------------
 // Shared application state
 // ---------------------------------------------------------------------------
 
 struct AppState {
-    client: Mutex<SupportClient>,
+    client: SupportClient,
 }
 
 // ---------------------------------------------------------------------------
@@ -108,10 +108,12 @@ async fn search(serial: String, state: State<'_, AppState>) -> Result<SearchResp
         });
     }
 
-    let client = state.client.lock().await;
-
     // 1. Lookup product
-    let products = client.lookup_product(&serial).await.map_err(|e| e.to_string())?;
+    let products = state
+        .client
+        .lookup_product(&serial)
+        .await
+        .map_err(|e| e.to_string())?;
 
     if products.is_empty() {
         return Ok(SearchResponse {
@@ -144,16 +146,32 @@ async fn search(serial: String, state: State<'_, AppState>) -> Result<SearchResp
     };
 
     let product_info = ProductInfo {
-        name: product.get("Name").and_then(|v| v.as_str()).unwrap_or("Unknown").into(),
+        name: product
+            .get("Name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Unknown")
+            .into(),
         product_type,
-        mtm: product.get("Mtm").and_then(|v| v.as_str()).unwrap_or("").into(),
-        id: product.get("Id").and_then(|v| v.as_str()).unwrap_or("").into(),
-        serial: product.get("Serial").and_then(|v| v.as_str()).unwrap_or("").into(),
+        mtm: product
+            .get("Mtm")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .into(),
+        id: product
+            .get("Id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .into(),
+        serial: product
+            .get("Serial")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .into(),
     };
 
     // 2. Fetch drivers
     let driver_data = if !product_info.id.is_empty() {
-        client.get_drivers(&product_info.id).await.ok()
+        state.client.get_drivers(&product_info.id).await.ok()
     } else {
         None
     };
@@ -161,7 +179,7 @@ async fn search(serial: String, state: State<'_, AppState>) -> Result<SearchResp
     // 3. Fetch warranty
     let machine_type = SupportClient::extract_machine_type(product);
     let warranty_data = if !machine_type.is_empty() {
-        client.get_warranty(&serial, &machine_type).await.ok()
+        state.client.get_warranty(&serial, &machine_type).await.ok()
     } else {
         None
     };
@@ -206,21 +224,39 @@ struct BrowseItem {
 }
 
 #[tauri::command]
-async fn search_products(query: String, state: State<'_, AppState>) -> Result<Vec<ProductMatch>, String> {
+async fn search_products(
+    query: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<ProductMatch>, String> {
     let query = query.trim().to_uppercase();
     if query.is_empty() {
         return Ok(vec![]);
     }
 
-    let client = state.client.lock().await;
-    let products = client.lookup_product(&query).await.map_err(|e| e.to_string())?;
+    let products = state
+        .client
+        .lookup_product(&query)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let matches: Vec<ProductMatch> = products
         .iter()
         .map(|p| ProductMatch {
-            name: p.get("Name").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
-            mtm: p.get("Mtm").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            id: p.get("Id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            name: p
+                .get("Name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown")
+                .to_string(),
+            mtm: p
+                .get("Mtm")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            id: p
+                .get("Id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
         })
         .collect();
 
@@ -228,24 +264,58 @@ async fn search_products(query: String, state: State<'_, AppState>) -> Result<Ve
 }
 
 #[tauri::command]
-async fn browse_products(product_id: String, state: State<'_, AppState>) -> Result<Vec<BrowseItem>, String> {
-    let client = state.client.lock().await;
-    let products = client.lookup_product(&product_id).await.map_err(|e| e.to_string())?;
+async fn browse_products(
+    product_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<BrowseItem>, String> {
+    let products = state
+        .client
+        .lookup_product(&product_id)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let items: Vec<BrowseItem> = products
         .iter()
         .filter(|p| {
             let t = p.get("Type").and_then(|v| v.as_str()).unwrap_or("");
-            t == "Product.Series"
-                || t == "Product.SubSeries"
-                || t == "Product.MachineType"
-                || t == "Product.Model"
+            let has_identity = !p
+                .get("Id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .is_empty()
+                && !p
+                    .get("Name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .is_empty();
+            has_identity
+                && (t.is_empty()
+                    || t == "Product.Series"
+                    || t == "Product.SubSeries"
+                    || t == "Product.MachineType"
+                    || t == "Product.Model")
         })
         .map(|p| BrowseItem {
-            id: p.get("Id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            name: p.get("Name").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
-            product_type: p.get("Type").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            image: p.get("Image").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            id: p
+                .get("Id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            name: p
+                .get("Name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown")
+                .to_string(),
+            product_type: p
+                .get("Type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            image: p
+                .get("Image")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
         })
         .collect();
 
@@ -254,8 +324,19 @@ async fn browse_products(product_id: String, state: State<'_, AppState>) -> Resu
 
 #[tauri::command]
 async fn fetch_readme(url: String, state: State<'_, AppState>) -> Result<ReadmeResponse, String> {
-    let client = state.client.lock().await;
-    let changes = client.fetch_readme_changes(&url).await.unwrap_or_default();
+    if !is_allowed_readme_url(&url) {
+        return Ok(ReadmeResponse {
+            success: false,
+            content: String::new(),
+            error: Some("Readme URL host is not allowed".into()),
+        });
+    }
+
+    let changes = state
+        .client
+        .fetch_readme_changes(&url)
+        .await
+        .unwrap_or_default();
     Ok(ReadmeResponse {
         success: true,
         content: changes,
@@ -265,8 +346,7 @@ async fn fetch_readme(url: String, state: State<'_, AppState>) -> Result<ReadmeR
 
 #[tauri::command]
 async fn clear_cache(state: State<'_, AppState>) -> Result<(), String> {
-    let client = state.client.lock().await;
-    client.clear_cache().map_err(|e| e.to_string())
+    state.client.clear_cache().map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -278,9 +358,7 @@ fn prepare_drivers_data(
     product_name: &str,
     serial: &str,
 ) -> DriversData {
-    let body = driver_data
-        .get("body")
-        .unwrap_or(driver_data);
+    let body = driver_data.get("body").unwrap_or(driver_data);
     let items = body
         .get("DownloadItems")
         .and_then(|v| v.as_array())
@@ -303,7 +381,11 @@ fn prepare_drivers_data(
             .and_then(|d| d.get("Unix"))
             .and_then(|v| v.as_i64());
 
-        let title = item.get("Title").and_then(|v| v.as_str()).unwrap_or("N/A").to_string();
+        let title = item
+            .get("Title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("N/A")
+            .to_string();
         let category = item
             .get("Category")
             .and_then(|c| c.get("Name"))
@@ -317,8 +399,16 @@ fn prepare_drivers_data(
         drivers.push(DriverEntry {
             title: title.clone(),
             short_title,
-            doc_id: item.get("DocId").and_then(|v| v.as_str()).unwrap_or("N/A").into(),
-            summary: item.get("Summary").and_then(|v| v.as_str()).unwrap_or("").into(),
+            doc_id: item
+                .get("DocId")
+                .and_then(|v| v.as_str())
+                .unwrap_or("N/A")
+                .into(),
+            summary: item
+                .get("Summary")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .into(),
             category,
             version: first_file
                 .and_then(|f| f.get("Version"))
@@ -343,20 +433,15 @@ fn prepare_drivers_data(
                 .into(),
             released: epoch_ms_to_date(date_unix),
             updated: epoch_ms_to_date(updated_unix),
-            require_login: item.get("RequireLogin").and_then(|v| v.as_bool()).unwrap_or(false),
-            os_keys: item
-                .get("OperatingSystemKeys")
-                .and_then(|v| v.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                })
-                .unwrap_or_default(),
+            require_login: item
+                .get("RequireLogin")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            os_keys: extract_os_keys(item, files),
             readme_url: first_file
                 .and_then(|f| f.get("URL"))
                 .and_then(|v| v.as_str())
-                .map(|url| build_readme_url(url))
+                .map(build_readme_url)
                 .unwrap_or_default(),
             release_notes: String::new(),
         });
@@ -378,23 +463,27 @@ fn short_title(title: &str) -> String {
     if let Ok(re) = regex::Regex::new(r"(?i)\s+for\s+Windows") {
         if let Some(m) = re.find(title) {
             let result = &title[..m.start()];
-            return result.trim_end_matches(|c| c == ' ' || c == '-').to_string();
+            return result.trim_end_matches([' ', '-']).to_string();
         }
     }
     if let Ok(re) = regex::Regex::new(r"\s+-\s+") {
         if let Some(m) = re.find(title) {
             let result = &title[..m.start()];
-            return result.trim_end_matches(|c| c == ' ' || c == '-').to_string();
+            return result.trim_end_matches([' ', '-']).to_string();
         }
     }
-    title.trim_end_matches(|c| c == ' ' || c == '-').to_string()
+    title.trim_end_matches([' ', '-']).to_string()
 }
 
 fn extract_priority(item: &Value, first_file: Option<&Value>) -> String {
     let priority = item
         .get("Priority")
         .and_then(|v| v.as_str())
-        .or_else(|| first_file.and_then(|f| f.get("Priority")).and_then(|v| v.as_str()))
+        .or_else(|| {
+            first_file
+                .and_then(|f| f.get("Priority"))
+                .and_then(|v| v.as_str())
+        })
         .map(normalize_priority);
 
     if let Some(p) = priority {
@@ -404,12 +493,48 @@ fn extract_priority(item: &Value, first_file: Option<&Value>) -> String {
     let weight = item
         .get("PriorityWeight")
         .and_then(|v| v.as_i64())
-        .or_else(|| first_file.and_then(|f| f.get("PriorityWeight")).and_then(|v| v.as_i64()));
+        .or_else(|| {
+            first_file
+                .and_then(|f| f.get("PriorityWeight"))
+                .and_then(|v| v.as_i64())
+        });
 
     match weight {
         Some(w) if w >= 3 => "Critical".to_string(),
         Some(w) if w >= 2 => "Recommended".to_string(),
         _ => "Optional".to_string(),
+    }
+}
+
+fn extract_os_keys(item: &Value, files: Option<&Vec<Value>>) -> Vec<String> {
+    let mut keys = std::collections::BTreeSet::new();
+
+    collect_string_array_field(item, "OperatingSystemKeys", &mut keys);
+
+    if let Some(files) = files {
+        for file in files {
+            collect_string_array_field(file, "OperatingSystemKeys", &mut keys);
+            collect_string_array_field(file, "OperatingSystems", &mut keys);
+        }
+    }
+
+    keys.into_iter().collect()
+}
+
+fn collect_string_array_field(
+    value: &Value,
+    field: &str,
+    target: &mut std::collections::BTreeSet<String>,
+) {
+    if let Some(values) = value.get(field).and_then(|v| v.as_array()) {
+        for value in values {
+            if let Some(text) = value.as_str() {
+                let trimmed = text.trim();
+                if !trimmed.is_empty() {
+                    target.insert(trimmed.to_string());
+                }
+            }
+        }
     }
 }
 
@@ -428,11 +553,9 @@ fn normalize_priority(value: &str) -> String {
 /// Convert epoch milliseconds to YYYY-MM-DD string
 fn epoch_ms_to_date(epoch_ms: Option<i64>) -> String {
     match epoch_ms {
-        Some(ms) => {
-            chrono::DateTime::from_timestamp_millis(ms)
-                .map(|dt| dt.format("%Y-%m-%d").to_string())
-                .unwrap_or_else(|| "N/A".into())
-        }
+        Some(ms) => chrono::DateTime::from_timestamp_millis(ms)
+            .map(|dt| dt.format("%Y-%m-%d").to_string())
+            .unwrap_or_else(|| "N/A".into()),
         None => "N/A".into(),
     }
 }
@@ -453,6 +576,21 @@ fn build_readme_url(download_url: &str) -> String {
     }
 }
 
+fn is_allowed_readme_url(readme_url: &str) -> bool {
+    let Ok(url) = Url::parse(readme_url) else {
+        return false;
+    };
+
+    if url.scheme() != "https" {
+        return false;
+    }
+
+    matches!(
+        url.host_str(),
+        Some("download.lenovo.com" | "pcsupport.lenovo.com")
+    )
+}
+
 // ---------------------------------------------------------------------------
 // Main entry point (called by main.rs)
 // ---------------------------------------------------------------------------
@@ -467,13 +605,47 @@ pub fn run() {
         std::env::set_var("GDK_BACKEND", "x11");
     }
     env_logger::init();
-    let client = SupportClient::new();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
-            client: Mutex::new(client),
+            client: SupportClient::new(),
         })
-        .invoke_handler(tauri::generate_handler![search, search_products, browse_products, fetch_readme, clear_cache])
+        .invoke_handler(tauri::generate_handler![
+            search,
+            search_products,
+            browse_products,
+            fetch_readme,
+            clear_cache
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn extracts_os_keys_from_driver_files() {
+        let item = json!({
+            "OperatingSystemKeys": [],
+            "Files": [
+                {
+                    "OperatingSystemKeys": ["Windows 11 (64-bit)"],
+                    "OperatingSystems": ["Windows 10 (64-bit)"]
+                }
+            ]
+        });
+
+        let files = item.get("Files").and_then(|v| v.as_array());
+
+        assert_eq!(
+            extract_os_keys(&item, files),
+            vec![
+                "Windows 10 (64-bit)".to_string(),
+                "Windows 11 (64-bit)".to_string()
+            ]
+        );
+    }
 }

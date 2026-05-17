@@ -1026,6 +1026,33 @@ footer {
   color: var(--footer-text);
   opacity: 0.7;
 }
+.app-footer {
+  margin: 28px 0 0;
+  padding: 10px 24px 12px;
+  justify-content: center;
+  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.app-version {
+  opacity: 0.85;
+}
+body.results-active .app-footer {
+  display: none;
+}
+#footer-drivers {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+}
+.driver-footer-version {
+  justify-self: center;
+  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  opacity: 0.85;
+}
+#generated-at {
+  justify-self: end;
+}
 
 /* ---- Browse Section ---- */
 .browse-section {
@@ -1408,6 +1435,18 @@ footer {
     margin-right: -8px;
     padding: 12px;
   }
+  .app-footer {
+    margin-left: 0;
+    margin-right: 0;
+    padding: 10px 12px;
+  }
+  #footer-drivers {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  #generated-at {
+    justify-self: center;
+  }
 }
 </style>
 </head>
@@ -1539,6 +1578,7 @@ footer {
           <span class="legend-item"><span class="badge badge-recommended">Recommended</span></span>
           <span class="legend-item"><span class="badge badge-optional">Optional</span></span>
         </div>
+        <div class="driver-footer-version" id="driver-app-version">LORE</div>
         <div id="generated-at"></div>
       </footer>
     </div>
@@ -1552,6 +1592,10 @@ footer {
   </div>
 
 </div>
+
+<footer class="app-footer" aria-label="Application version">
+  <span class="app-version" id="app-version">LORE</span>
+</footer>
 
 <script type="module" src="/app.js"></script>
 <script>
@@ -1573,16 +1617,39 @@ footer {
   var browseCategories = [
     { name: "Laptops", query: "LAPTOPS-AND-NETBOOKS" },
     { name: "Desktops & All-in-Ones", query: "DESKTOPS-AND-ALL-IN-ONES" },
-    { name: "Workstations", query: "WORKSTATIONS" },
-    { name: "Tablets", query: "TABLETS" },
+    { name: "Workstations", localItems: [
+      { name: "C Series Workstations (ThinkStation)", id: "THINKSTATION-C-SERIES-WORKSTATIONS", type: "Product.Series" },
+      { name: "D Series Workstations (ThinkStation)", id: "THINKSTATION-D-SERIES-WORKSTATIONS", type: "Product.Series" },
+      { name: "E Series Workstations (ThinkStation)", id: "THINKSTATION-E-SERIES-WORKSTATIONS", type: "Product.Series" },
+      { name: "P Series Workstations (ThinkStation)", id: "THINKSTATION-P-SERIES-WORKSTATIONS", type: "Product.Series" },
+      { name: "S Series Workstations (ThinkStation)", id: "THINKSTATION-S-SERIES-WORKSTATIONS", type: "Product.Series" },
+    ] },
+    { name: "Tablets", localItems: [
+      { name: "All Tablets", id: "TABLET", type: "Product.Series" },
+      { name: "Lenovo Tab", id: "LENOVO-TAB", type: "Product.Series" },
+      { name: "Yoga Tablets", id: "YOGA-TAB", type: "Product.Series" },
+      { name: "Miix Series", id: "MIIX-SERIES", type: "Product.Series" },
+      { name: "ThinkPad X1 Tablet", id: "THINKPAD-X1-TABLET", type: "Product.Series" },
+      { name: "IdeaTab", id: "IDEATAB", type: "Product.Series" },
+    ] },
     { name: "Monitors", query: "MONITORS" },
-    { name: "Accessories", query: "ACCESSORIES" },
+    { name: "Accessories", localItems: [
+      { name: "Cables & Adapters", id: "CABLES-AND-ADAPTERS", type: "Product.Series" },
+      { name: "Docks", id: "DOCK", type: "Product.Series" },
+      { name: "Keyboard & Mouse Combos", id: "KEYBOARD-AND-MOUSE", type: "Product.Series" },
+      { name: "Mice", id: "MOUSE", type: "Product.Series" },
+      { name: "Webcams", id: "WEBCAM", type: "Product.Series" },
+      { name: "Headsets", id: "HEADSET", type: "Product.Series" },
+      { name: "Memory", id: "MEMORY", type: "Product.Series" },
+      { name: "Pens", id: "PENS", type: "Product.Series" },
+    ] },
     { name: "Chromebook Laptops", query: "CHROMEBOOK-LAPTOPS" },
   ];
   var browseHistory = [];  // array of {name, query} for breadcrumb
   var browseLoading = false;
   var browseRequestId = 0;
   var browseGroups = {};
+  var lastBrowseMouseBackAt = 0;
 
   // Category fallback SVG icons
   var categoryIcons = {
@@ -1623,10 +1690,13 @@ footer {
   var categoryFilters = document.getElementById("category-filters");
   var expandCollapseBtn = document.getElementById("expand-collapse-btn");
   var welcomeState = document.getElementById("welcome-state");
+  var appVersionEl = document.getElementById("app-version");
+  var driverAppVersionEl = document.getElementById("driver-app-version");
   var backBtn = document.getElementById("back-btn");
   if (backBtn) {
     backBtn.addEventListener("click", resetSearch);
   }
+  initAppVersion();
 
   // ---- Browse DOM refs ----
   var browseSection = document.getElementById("browse-section");
@@ -1636,8 +1706,29 @@ footer {
   var browseSelect = document.getElementById("browse-select");
   var browseGrid = document.getElementById("browse-grid");
 
+  window.addEventListener("mousedown", handleBrowseMouseBack, true);
+  window.addEventListener("auxclick", handleBrowseMouseBack, true);
+
   // Initialize browse categories on load
   renderBrowseCategories();
+
+  function initAppVersion() {
+    var __tauri = null;
+    try { __tauri = window.__TAURI__; } catch(e) {}
+
+    function setVersionLabel(text) {
+      if (appVersionEl) appVersionEl.textContent = text;
+      if (driverAppVersionEl) driverAppVersionEl.textContent = text;
+    }
+
+    if (__tauri && __tauri.app && __tauri.app.getVersion) {
+      __tauri.app.getVersion().then(function(version) {
+        setVersionLabel("LORE v" + version);
+      }).catch(function() {
+        setVersionLabel("LORE");
+      });
+    }
+  }
 
   // ---- Browse Functions ----
   function renderBrowseCategories() {
@@ -1665,12 +1756,30 @@ footer {
       card.appendChild(nameDiv);
 
       card.addEventListener("click", function() {
-        browseInto(cat.name, cat.query);
+        if (cat.localItems) {
+          handleBrowseItemClick({
+            name: cat.name,
+            id: cat.name,
+            type: "Browse.Group",
+            localItems: cat.localItems,
+          });
+        } else {
+          browseInto(cat.name, cat.query);
+        }
       });
       card.addEventListener("keydown", function(e) {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          browseInto(cat.name, cat.query);
+            if (cat.localItems) {
+              handleBrowseItemClick({
+                name: cat.name,
+                id: cat.name,
+                type: "Browse.Group",
+                localItems: cat.localItems,
+              });
+            } else {
+              browseInto(cat.name, cat.query);
+            }
         }
       });
 
@@ -1705,6 +1814,21 @@ footer {
     } else {
       loadBrowseItems(target.query);
     }
+  }
+
+  function handleBrowseMouseBack(e) {
+    if (e.button !== 3) return;
+    if (document.body.classList.contains("results-active")) return;
+    if (browseHistory.length === 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    var now = Date.now();
+    if (now - lastBrowseMouseBackAt < 150) return;
+    lastBrowseMouseBackAt = now;
+
+    browseBackTo(browseHistory.length - 2);
   }
 
   function renderBreadcrumb() {
@@ -1952,6 +2076,10 @@ footer {
       return groupBrowseItems(scopedItems, getSeriesGroup);
     }
 
+    if (depth === 1 && shouldGroupByModel(scopedItems)) {
+      return groupBrowseItems(scopedItems, getModelGroup);
+    }
+
     if (depth === 2 && shouldGroupByModel(scopedItems)) {
       return groupBrowseItems(scopedItems, getModelGroup);
     }
@@ -2065,6 +2193,7 @@ footer {
       "THINKPAD-YOGA-SERIES-LAPTOPS": "Yoga Series Laptops (ThinkPad)",
       "THINKPAD-11E-SERIES-LAPTOPS": "11e Series Laptops (ThinkPad)",
       "THINKPAD-A-SERIES-LAPTOPS": "A Series Laptops (ThinkPad)",
+      "THINKSTATION-P-SERIES-WORKSTATIONS": "P Series Workstations (ThinkStation)",
       "THINKBOOK-SERIES": "ThinkBook Laptops",
       "YOGA-SERIES": "Yoga Series Laptops",
       "IDEAPAD-S-SERIES-NETBOOKS": "S Series Laptops (IdeaPad)",
@@ -2461,6 +2590,7 @@ footer {
     tabBar.classList.remove("visible");
     resultsContainer.classList.remove("visible");
     welcomeState.classList.remove("hidden");
+    document.body.classList.remove("results-active");
   }
   function resetSearch() {
     serialInput.value = "";
@@ -2503,6 +2633,7 @@ footer {
     serialDisplay.textContent = result.serial;
     productNameSub.textContent = (currentData && currentData.productName) || p.name || "";
     resultsContainer.classList.add("visible");
+    document.body.classList.add("results-active");
 
     // Generated at
     if (currentData && currentData.generatedAt) {
