@@ -1581,6 +1581,7 @@ footer {
   ];
   var browseHistory = [];  // array of {name, query} for breadcrumb
   var browseLoading = false;
+  var browseRequestId = 0;
   var browseGroups = {};
 
   // Category fallback SVG icons
@@ -1687,6 +1688,9 @@ footer {
   }
 
   function browseBackTo(index) {
+    // Cancel any in-flight browse request
+    browseRequestId++;
+    browseLoading = false;
     // index -1 = home (reset)
     if (index < 0) {
       renderBrowseCategories();
@@ -1738,6 +1742,7 @@ footer {
   function loadBrowseItems(query) {
     if (browseLoading) return;
     browseLoading = true;
+    var currentRequestId = ++browseRequestId;
     renderBrowseLoading();
 
     var __tauri = null;
@@ -1747,10 +1752,12 @@ footer {
       __tauri.core.invoke("browse_products", { productId: query })
         .then(function(items) {
           browseLoading = false;
+          if (browseRequestId !== currentRequestId) return;
           renderBrowseItems(items);
         })
         .catch(function(err) {
           browseLoading = false;
+          if (browseRequestId !== currentRequestId) return;
           renderBrowseError(query, err);
         });
     } else {
@@ -1762,10 +1769,12 @@ footer {
         })
         .then(function(items) {
           browseLoading = false;
+          if (browseRequestId !== currentRequestId) return;
           renderBrowseItems(items);
         })
         .catch(function(err) {
           browseLoading = false;
+          if (browseRequestId !== currentRequestId) return;
           renderBrowseError(query, err);
         });
     }

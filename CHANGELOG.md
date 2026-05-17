@@ -28,6 +28,8 @@ All notable changes to LORE will be documented in this file.
 ### Fixed
 
 - Browse loop: series containers (e.g. `T-Series`) no longer reappear after already selecting that series
+- Browse race condition: stale API responses are now discarded when navigating back before the response arrives
+- Vite build warning: `emptyOutDir: true` added to clear stale artifacts from `dist/` before each build
 - Missing priority dots: Critical/Recommended values from alternative API fields are now detected
 - AppImage bundling failure on Arch Linux due to `linuxdeploy` incompatibilities
 
