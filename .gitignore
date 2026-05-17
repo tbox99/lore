@@ -14,30 +14,24 @@ build/
 .eggs/
 *.egg
 
+# Legacy Python files
+pyproject.toml
+src/lore/
+install.sh
+install.ps1
+
 # Testing
 .pytest_cache/
 .mypy_cache/
 .coverage
 htmlcov/
+tests/
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Project-specific
-*.log
-deploy_key
-deploy_key.pub
-
-# Node/Tauri
-node_modules/
-dist/
-target/
-src-tauri/target/
+# Internal docs
+CHECKPOINT_2025-05-15.md
+STATUS.md
+TODO.md
+ARCHITECTURE.md
+API_REFERENCE.md
+CONTRIBUTING.md
+sync-remote.sh
