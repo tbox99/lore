@@ -32,12 +32,12 @@ lore
 
 **Debian/Ubuntu:**
 ```bash
-sudo dpkg -i LORE_1.0.0_amd64.deb
+sudo dpkg -i LORE_1.1.0_amd64.deb
 ```
 
 **Fedora/RHEL:**
 ```bash
-sudo rpm -i LORE-1.0.0-1.x86_64.rpm
+sudo rpm -i LORE-1.1.0-1.x86_64.rpm
 ```
 
 ### Linux System Requirements
@@ -118,7 +118,8 @@ lore/
 ```bash
 npm install
 npm run tauri dev      # Development mode with hot reload
-npm run tauri build    # Production build
+npm run build:all     # Production build (all bundles, includes Arch/AppImage fixes)
+npm run build:appimage # AppImage-only build
 ```
 
 ### Build Artifacts
@@ -127,24 +128,29 @@ npm run tauri build    # Production build
 |--------|------|
 | Binary | `src-tauri/target/release/lore` |
 | AppImage | `src-tauri/target/release/bundle/appimage/LORE-x86_64.AppImage` |
-| Debian | `src-tauri/target/release/bundle/deb/LORE_1.0.0_amd64.deb` |
-| RPM | `src-tauri/target/release/bundle/rpm/LORE-1.0.0-1.x86_64.rpm` |
+| Debian | `src-tauri/target/release/bundle/deb/LORE_1.1.0_amd64.deb` |
+| RPM | `src-tauri/target/release/bundle/rpm/LORE-1.1.0-1.x86_64.rpm` |
 | Windows MSI | `src-tauri/target/release/bundle/msi/LORE_1.0.0_x64_en-US.msi` |
 
 ## Features
 
 - **Dark mode** with automatic system preference detection
-- **Card-based driver listing** with expand/collapse details
+- **Guided Browse by Product** — hierarchical drill-down matching Lenovo's product categories (Laptops, Desktops, Workstations, Tablets, Monitors, Accessories)
+- **Breadcrumb navigation** through browse path (Category → Series → SubSeries → Machine Type)
+- **Driver list grid layout** — structured columns for name, version, date, priority, OS
+- **Driver sorting** — by Priority, Newest first, Oldest first
+- **OS filter pills** — Win 11 / Win 10 quick-filter with color-coded badges
 - **Priority badges** (Critical, Recommended, Optional) with color coding
 - **Category filtering** with pill-style buttons
 - **Priority filtering** (Critical, Recommended, Optional)
 - **Text search** across driver titles
 - **Expand/Collapse All** toggle for driver cards
-- **One-click URL copy** for download and readme links
+- **One-click URL copy** — clipboard icon for download and readme links
 - **Release notes** fetched on demand with concurrent loading (max 3)
 - **Warranty tab** with machine info, base/upgrade warranties, and status badges
 - **Disk caching** (1h product, 6h drivers, 24h warranty) for fast repeat lookups
 - **NVIDIA/WebKitGTK compatibility** — automatic workarounds for Linux GPU issues
+- **AppImage build on Arch Linux** — automatic workarounds for `linuxdeploy` incompatibilities
 
 ## Legacy Python Version
 

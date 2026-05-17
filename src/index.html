@@ -134,9 +134,9 @@ body {
   gap: 12px;
   flex-wrap: wrap;
 }
+.search-wrapper input[type="text"],
 .search-section input[type="text"] {
-  flex: 1;
-  min-width: 200px;
+  width: 100%;
   padding: 10px 14px;
   border: 1px solid #444;
   border-radius: 4px;
@@ -147,10 +147,12 @@ body {
   outline: none;
   transition: border-color 0.15s ease;
 }
+.search-wrapper input[type="text"]:focus,
 .search-section input[type="text"]:focus {
   border-color: var(--lenovo-red);
   box-shadow: 0 0 0 2px rgba(226,35,26,0.25);
 }
+.search-wrapper input[type="text"]::placeholder,
 .search-section input[type="text"]::placeholder {
   color: #888;
 }
@@ -194,27 +196,40 @@ body {
   line-height: 1.5;
   margin-bottom: 20px;
 }
-.welcome-example {
-  font-size: 14px;
+.welcome-browse-hint {
+  font-size: 13px;
   color: var(--text-muted);
+  margin-top: 4px;
 }
-.welcome-example-sn {
-  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-weight: 600;
+.welcome-capabilities {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.capability-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  cursor: default;
+  user-select: none;
+}
+.capability-icon {
+  width: 28px;
+  height: 28px;
   color: var(--lenovo-red);
-  cursor: pointer;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: rgba(226, 35, 26, 0.08);
 }
-.welcome-example-sn:hover {
-  background: rgba(226, 35, 26, 0.15);
-}
-  border-radius: 4px;
-  font-size: 15px;
+.capability-label {
+  font-size: 12px;
   font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease;
+  color: var(--text-muted);
+  text-align: center;
 }
 .search-btn:hover {
   background: var(--lenovo-dark-red);
@@ -222,6 +237,54 @@ body {
 .search-btn:disabled {
   background: #555;
   cursor: not-allowed;
+}
+
+/* ---- Search wrapper & dropdown ---- */
+.search-wrapper {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+}
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #2A2A2A;
+  border: 1px solid #444;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 200;
+  display: none;
+}
+.search-dropdown.visible {
+  display: block;
+}
+.search-dropdown-item {
+  padding: 8px 14px;
+  cursor: pointer;
+  color: #E5E5E5;
+  font-size: 14px;
+  border-bottom: 1px solid #333;
+  transition: background 0.1s ease;
+}
+.search-dropdown-item:last-child {
+  border-bottom: none;
+}
+.search-dropdown-item:hover {
+  background: rgba(226, 35, 26, 0.15);
+}
+.search-dropdown-item .item-name {
+  font-weight: 600;
+  color: #E5E5E5;
+}
+.search-dropdown-item .item-mtm {
+  font-family: 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #999;
+  margin-left: 8px;
+  font-size: 12px;
 }
 
 /* ---- Product Info ---- */
@@ -391,6 +454,23 @@ body {
 .sub-header .product-name-label {
   color: #CCCCCC;
 }
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  background: var(--lenovo-red);
+  border: none;
+  border-radius: 4px;
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.back-btn:hover {
+  background: var(--lenovo-dark-red);
+}
 
 /* ---- Filter bar ---- */
 .filter-bar {
@@ -424,6 +504,20 @@ body {
 }
 .filter-bar input[type="text"]::placeholder {
   color: var(--text-muted);
+}
+.sort-select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.sort-select:focus {
+  border-color: var(--lenovo-red);
+  box-shadow: 0 0 0 2px rgba(226,35,26,0.15);
 }
 .expand-collapse-btn {
   padding: 6px 14px;
@@ -544,19 +638,19 @@ body {
 
 /* ---- Collapsed row ---- */
 .driver-card-collapsed {
-  display: flex;
+  display: grid;
+  grid-template-columns: 16px minmax(220px, 1fr) minmax(92px, auto) minmax(92px, auto) minmax(96px, auto) minmax(82px, auto) 16px;
   align-items: center;
   padding: 5px 10px;
-  gap: 10px;
+  column-gap: 10px;
   min-height: 30px;
 }
 .driver-card-collapsed .priority-dot {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1;
 }
 .driver-card-collapsed .collapsed-title {
-  flex: 1;
   min-width: 0;
   font-weight: 600;
   font-size: 13px;
@@ -566,7 +660,7 @@ body {
   text-overflow: ellipsis;
 }
 .driver-card-collapsed .collapsed-badge {
-  flex-shrink: 0;
+  justify-self: start;
   font-size: 10px;
   font-weight: 700;
   padding: 1px 6px;
@@ -587,7 +681,7 @@ body {
   color: #888;
 }
 .driver-card-collapsed .collapsed-os-badge {
-  flex-shrink: 0;
+  justify-self: start;
   font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
@@ -596,9 +690,21 @@ body {
   border-radius: 3px;
   white-space: nowrap;
 }
-.driver-card-collapsed .collapsed-meta {
-  flex-shrink: 0;
-  text-align: right;
+.collapsed-os-badge.os-win11 {
+  background: rgba(37, 99, 235, 0.14);
+  color: #2563EB;
+}
+.collapsed-os-badge.os-win10 {
+  background: rgba(22, 163, 74, 0.14);
+  color: #15803D;
+}
+.collapsed-os-badge.os-mixed {
+  background: rgba(124, 58, 237, 0.14);
+  color: #7C3AED;
+}
+.driver-card-collapsed .collapsed-version,
+.driver-card-collapsed .collapsed-date {
+  justify-self: start;
   white-space: nowrap;
 }
 .driver-card-collapsed .collapsed-version {
@@ -609,7 +715,6 @@ body {
 .driver-card-collapsed .collapsed-date {
   font-size: 11px;
   color: var(--text-muted);
-  margin-left: 8px;
 }
 .driver-card-collapsed .collapsed-spacer {
   display: none;
@@ -696,7 +801,7 @@ body {
 .driver-card-header .priority-dot {
   flex-shrink: 0;
   margin-top: 3px;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
 }
 .driver-card-title {
@@ -744,16 +849,25 @@ body {
   text-decoration: underline;
 }
 .copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
   background: none;
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 2px 6px;
+  padding: 0;
   cursor: pointer;
-  font-size: 12px;
   color: var(--text-muted);
   line-height: 1;
   flex-shrink: 0;
   transition: all 0.15s ease;
+}
+.copy-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
 }
 .copy-btn:hover {
   color: var(--lenovo-red);
@@ -913,6 +1027,186 @@ footer {
   opacity: 0.7;
 }
 
+/* ---- Browse Section ---- */
+.browse-section {
+  margin-top: 28px;
+  width: 100%;
+  max-width: 740px;
+}
+.browse-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.browse-select-row {
+  display: none;
+  margin-bottom: 12px;
+}
+.browse-select-row.visible {
+  display: block;
+}
+.browse-select-row select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+.browse-select-row select:focus {
+  border-color: var(--lenovo-red);
+  box-shadow: 0 0 0 2px rgba(226,35,26,0.15);
+}
+.browse-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+.browse-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 6px;
+  padding: 16px 10px 12px 10px;
+  text-align: center;
+  cursor: pointer;
+  min-height: 126px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.browse-card:hover,
+.browse-card:focus-visible {
+  border-color: var(--lenovo-red);
+  box-shadow: var(--shadow-hover);
+  outline: none;
+}
+.browse-card img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  margin-bottom: 6px;
+  opacity: 0.9;
+}
+.browse-card .browse-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.browse-card .browse-type {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.browse-card .browse-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+.browse-card .browse-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 6px auto;
+  color: var(--lenovo-red);
+  opacity: 0.7;
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.breadcrumb a {
+  color: var(--text-link);
+  text-decoration: none;
+  cursor: pointer;
+}
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+.breadcrumb .separator {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+.browse-message {
+  grid-column: 1 / -1;
+  min-height: 126px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px;
+  border: 1px dashed var(--border-card);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 14px;
+}
+.browse-message strong {
+  color: var(--text);
+}
+.browse-message.error {
+  border-color: rgba(226, 35, 26, 0.45);
+}
+.browse-action {
+  margin-top: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--btn-border);
+  border-radius: 4px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.browse-action:hover {
+  border-color: var(--lenovo-red);
+  color: var(--lenovo-red);
+}
+.browse-card.skeleton {
+  cursor: default;
+  pointer-events: none;
+}
+.browse-skeleton-icon,
+.browse-skeleton-line,
+.browse-skeleton-small {
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--bg), var(--border-card), var(--bg));
+  background-size: 200% 100%;
+  animation: browse-shimmer 1.15s ease-in-out infinite;
+}
+.browse-skeleton-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+}
+.browse-skeleton-line {
+  width: 78%;
+  height: 12px;
+  margin-bottom: 8px;
+}
+.browse-skeleton-small {
+  width: 42%;
+  height: 10px;
+}
+@keyframes browse-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* ---- Responsive ---- */
 @media (min-width: 1200px) {
   .container {
@@ -945,8 +1239,30 @@ footer {
     flex-wrap: wrap;
     padding: 12px 16px;
   }
-  .search-section input[type="text"] {
+  .search-section input[type="text"],
+  .search-wrapper input[type="text"] {
     flex: 1 1 100%;
+  }
+  .search-btn {
+    width: 100%;
+  }
+  .welcome-state {
+    padding: 52px 16px 44px;
+  }
+  .welcome-capabilities {
+    gap: 10px;
+  }
+  .capability-item {
+    flex: 1 1 140px;
+    max-width: 180px;
+    padding: 10px;
+  }
+  .browse-section {
+    margin-top: 22px;
+  }
+  .browse-grid {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 10px;
   }
   .filter-bar {
     flex-wrap: wrap;
@@ -985,6 +1301,35 @@ footer {
   }
   .search-section {
     padding: 10px 12px;
+  }
+  .welcome-icon svg {
+    width: 86px;
+    height: 86px;
+  }
+  .welcome-heading {
+    font-size: 20px;
+  }
+  .welcome-text {
+    font-size: 14px;
+  }
+  .capability-item {
+    flex: 1 1 calc(50% - 8px);
+    max-width: none;
+  }
+  .browse-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .browse-card {
+    min-height: 116px;
+    padding: 14px 8px 10px;
+  }
+  .browse-card img,
+  .browse-card .browse-icon {
+    width: 42px;
+    height: 42px;
+  }
+  .breadcrumb {
+    flex-wrap: wrap;
   }
   .sub-header {
     padding: 8px 12px;
@@ -1074,7 +1419,10 @@ footer {
 </div>
 
 <div class="search-section">
-  <input type="text" id="serial-input" placeholder="Enter serial number (e.g. PF4SQLH9)">
+  <div class="search-wrapper">
+    <input type="text" id="serial-input" placeholder="Enter serial number, MTM, or model name">
+    <div class="search-dropdown" id="search-dropdown"></div>
+  </div>
   <button class="search-btn" id="search-btn">Search</button>
 </div>
 
@@ -1091,8 +1439,35 @@ footer {
     </svg>
   </div>
   <div class="welcome-heading">Ready to look up a device?</div>
-  <div class="welcome-text">Enter a serial number or MTM prefix in the search bar above.</div>
-  <div class="welcome-example">Try: <span class="welcome-example-sn" id="example-sn">PF4SQLH9</span></div>
+  <div class="welcome-text">Enter a serial number, MTM prefix, or model name above.</div>
+  <div class="welcome-browse-hint">Or browse products below.</div>
+  <div class="welcome-capabilities">
+    <div class="capability-item">
+      <svg class="capability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+      <span class="capability-label">Serial Lookup</span>
+    </div>
+    <div class="capability-item">
+      <svg class="capability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="7" y1="20" x2="17" y2="20"/><line x1="10" y1="16" x2="14" y2="16"/><line x1="12" y1="16" x2="12" y2="20"/></svg>
+      <span class="capability-label">Model Search</span>
+    </div>
+    <div class="capability-item">
+      <svg class="capability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span class="capability-label">Driver Downloads</span>
+    </div>
+    <div class="capability-item">
+      <svg class="capability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span class="capability-label">Warranty Check</span>
+    </div>
+  </div>
+
+  <div class="browse-section" id="browse-section">
+    <div class="browse-header" id="browse-header">Browse by Product</div>
+    <div class="breadcrumb" id="browse-breadcrumb" style="display:none;"></div>
+    <div class="browse-select-row" id="browse-select-row">
+      <select id="browse-select" aria-label="Choose product level"></select>
+    </div>
+    <div class="browse-grid" id="browse-grid"></div>
+  </div>
 </div>
 
 <div class="container">
@@ -1117,12 +1492,18 @@ footer {
 
     <div class="results-container" id="results-container">
       <div class="sub-header">
+        <button class="back-btn" id="back-btn">&#8592; New Search</button>
         <span>Serial:</span> <span class="serial" id="serial-display"></span>
         <span class="product-name-label" id="product-name-sub"></span>
       </div>
 
       <div class="filter-bar">
         <input type="text" id="filter-input" placeholder="Filter drivers by title…">
+        <select class="sort-select" id="sort-select" aria-label="Sort drivers">
+          <option value="default">Sort: Priority</option>
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
         <button class="expand-collapse-btn" id="expand-collapse-btn">Expand All</button>
       </div>
 
@@ -1138,6 +1519,14 @@ footer {
             <span class="filter-pill" data-priority="Critical">Critical</span>
             <span class="filter-pill" data-priority="Recommended">Recommended</span>
             <span class="filter-pill" data-priority="Optional">Optional</span>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-row-label">Operating System</span>
+          <div class="filter-pills">
+            <span class="filter-pill active" id="os-all">All</span>
+            <span class="filter-pill" data-os-filter="win11">Win 11</span>
+            <span class="filter-pill" data-os-filter="win10">Win 10</span>
           </div>
         </div>
       </div>
@@ -1173,10 +1562,45 @@ footer {
   var currentFilter = "";
   var activeCategories = {};  // category name -> true if active
   var activePriorities = {};  // priority name -> true if active
+  var activeOsFilters = {};   // win10/win11 -> true if active
   var expandedCards = {};
   var currentData = null;
   var currentWarranty = null;
   var allExpanded = false;
+  var sortMode = "default";
+
+  // ---- Browse State ----
+  var browseCategories = [
+    { name: "Laptops", query: "LAPTOPS-AND-NETBOOKS" },
+    { name: "Desktops & All-in-Ones", query: "DESKTOPS-AND-ALL-IN-ONES" },
+    { name: "Workstations", query: "WORKSTATIONS" },
+    { name: "Tablets", query: "TABLETS" },
+    { name: "Monitors", query: "MONITORS" },
+    { name: "Accessories", query: "ACCESSORIES" },
+    { name: "Chromebook Laptops", query: "CHROMEBOOK-LAPTOPS" },
+  ];
+  var browseHistory = [];  // array of {name, query} for breadcrumb
+  var browseLoading = false;
+  var browseGroups = {};
+
+  // Category fallback SVG icons
+  var categoryIcons = {
+    "Laptops": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="7" y1="20" x2="17" y2="20"/><line x1="10" y1="16" x2="14" y2="16"/></svg>',
+    "Desktops & All-in-Ones": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="12" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="6" y1="16" x2="18" y2="16"/></svg>',
+    "Workstations": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>',
+    "Tablets": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="2" width="12" height="20" rx="2"/><circle cx="12" cy="18" r="1"/></svg>',
+    "Monitors": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 21h8M12 16v5"/></svg>',
+    "Accessories": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8a3 3 0 016 0"/></svg>',
+    "Chromebook Laptops": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="12" rx="2"/><circle cx="12" cy="10" r="3"/><line x1="7" y1="20" x2="17" y2="20"/></svg>',
+    "default": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="7" y1="20" x2="17" y2="20"/></svg>',
+  };
+
+  // Type-specific icons for deeper browse items
+  var typeIcons = {
+    "Product.Series": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>',
+    "Product.SubSeries": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="7" y1="20" x2="17" y2="20"/><line x1="10" y1="16" x2="14" y2="16"/></svg>',
+    "Product.MachineType": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+  };
 
   // ---- DOM refs ----
   var serialInput = document.getElementById("serial-input");
@@ -1191,18 +1615,566 @@ footer {
   var serialDisplay = document.getElementById("serial-display");
   var productNameSub = document.getElementById("product-name-sub");
   var filterInput = document.getElementById("filter-input");
+  var sortSelect = document.getElementById("sort-select");
   var driverList = document.getElementById("driver-list");
   var generatedAt = document.getElementById("generated-at");
   var warrantyContent = document.getElementById("warranty-content");
   var categoryFilters = document.getElementById("category-filters");
   var expandCollapseBtn = document.getElementById("expand-collapse-btn");
   var welcomeState = document.getElementById("welcome-state");
-  var exampleSn = document.getElementById("example-sn");
-  if (exampleSn) {
-    exampleSn.addEventListener("click", function() {
-      serialInput.value = this.textContent;
-      doSearch();
+  var backBtn = document.getElementById("back-btn");
+  if (backBtn) {
+    backBtn.addEventListener("click", resetSearch);
+  }
+
+  // ---- Browse DOM refs ----
+  var browseSection = document.getElementById("browse-section");
+  var browseHeader = document.getElementById("browse-header");
+  var browseBreadcrumb = document.getElementById("browse-breadcrumb");
+  var browseSelectRow = document.getElementById("browse-select-row");
+  var browseSelect = document.getElementById("browse-select");
+  var browseGrid = document.getElementById("browse-grid");
+
+  // Initialize browse categories on load
+  renderBrowseCategories();
+
+  // ---- Browse Functions ----
+  function renderBrowseCategories() {
+    browseHistory = [];
+    browseBreadcrumb.style.display = "none";
+    browseSelectRow.classList.remove("visible");
+    browseSelect.innerHTML = "";
+    browseHeader.textContent = "Browse by Product";
+    browseGrid.innerHTML = "";
+
+    browseCategories.forEach(function(cat) {
+      var card = document.createElement("div");
+      card.className = "browse-card";
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+
+      var iconDiv = document.createElement("div");
+      iconDiv.className = "browse-icon";
+      iconDiv.innerHTML = categoryIcons[cat.name] || categoryIcons["default"];
+      card.appendChild(iconDiv);
+
+      var nameDiv = document.createElement("div");
+      nameDiv.className = "browse-name";
+      nameDiv.textContent = cat.name;
+      card.appendChild(nameDiv);
+
+      card.addEventListener("click", function() {
+        browseInto(cat.name, cat.query);
+      });
+      card.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          browseInto(cat.name, cat.query);
+        }
+      });
+
+      browseGrid.appendChild(card);
     });
+  }
+
+  function browseInto(name, query) {
+    // Push to history
+    browseHistory.push({ name: name, query: query });
+    browseHeader.textContent = name;
+    browseBreadcrumb.style.display = "flex";
+    renderBreadcrumb();
+    loadBrowseItems(query);
+  }
+
+  function browseBackTo(index) {
+    // index -1 = home (reset)
+    if (index < 0) {
+      renderBrowseCategories();
+      return;
+    }
+    var target = browseHistory[index];
+    browseHistory = browseHistory.slice(0, index + 1);
+    browseHeader.textContent = target.name;
+    renderBreadcrumb();
+    if (target.localItems) {
+      renderBrowseItems(target.localItems);
+    } else {
+      loadBrowseItems(target.query);
+    }
+  }
+
+  function renderBreadcrumb() {
+    browseBreadcrumb.innerHTML = "";
+
+    // Home link
+    var homeLink = document.createElement("a");
+    homeLink.textContent = "Home";
+    homeLink.addEventListener("click", function() {
+      browseBackTo(-1);
+    });
+    browseBreadcrumb.appendChild(homeLink);
+
+    browseHistory.forEach(function(item, i) {
+      var sep = document.createElement("span");
+      sep.className = "separator";
+      sep.textContent = " > ";
+      browseBreadcrumb.appendChild(sep);
+
+      var link = document.createElement("a");
+      link.textContent = item.name;
+      if (i < browseHistory.length - 1) {
+        link.addEventListener("click", (function(idx) {
+          return function() { browseBackTo(idx); };
+        })(i));
+      } else {
+        link.style.color = "var(--text)";
+        link.style.cursor = "default";
+        link.style.textDecoration = "none";
+      }
+      browseBreadcrumb.appendChild(link);
+    });
+  }
+
+  function loadBrowseItems(query) {
+    if (browseLoading) return;
+    browseLoading = true;
+    renderBrowseLoading();
+
+    var __tauri = null;
+    try { __tauri = window.__TAURI__; } catch(e) {}
+
+    if (__tauri) {
+      __tauri.core.invoke("browse_products", { productId: query })
+        .then(function(items) {
+          browseLoading = false;
+          renderBrowseItems(items);
+        })
+        .catch(function(err) {
+          browseLoading = false;
+          renderBrowseError(query, err);
+        });
+    } else {
+      // HTTP fallback
+      fetch("/api/browse?productId=" + encodeURIComponent(query))
+        .then(function(r) {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then(function(items) {
+          browseLoading = false;
+          renderBrowseItems(items);
+        })
+        .catch(function(err) {
+          browseLoading = false;
+          renderBrowseError(query, err);
+        });
+    }
+  }
+
+  function renderBrowseLoading() {
+    browseSelectRow.classList.remove("visible");
+    browseGrid.innerHTML = "";
+    for (var i = 0; i < 6; i++) {
+      var card = document.createElement("div");
+      card.className = "browse-card skeleton";
+      card.setAttribute("aria-hidden", "true");
+
+      var icon = document.createElement("div");
+      icon.className = "browse-skeleton-icon";
+      card.appendChild(icon);
+
+      var line = document.createElement("div");
+      line.className = "browse-skeleton-line";
+      card.appendChild(line);
+
+      var small = document.createElement("div");
+      small.className = "browse-skeleton-small";
+      card.appendChild(small);
+
+      browseGrid.appendChild(card);
+    }
+  }
+
+  function renderBrowseMessage(kind, title, detail, retryQuery) {
+    browseSelectRow.classList.remove("visible");
+    browseGrid.innerHTML = "";
+    var msg = document.createElement("div");
+    msg.className = "browse-message" + (kind === "error" ? " error" : "");
+
+    var titleEl = document.createElement("strong");
+    titleEl.textContent = title;
+    msg.appendChild(titleEl);
+
+    if (detail) {
+      var detailEl = document.createElement("div");
+      detailEl.textContent = detail;
+      msg.appendChild(detailEl);
+    }
+
+    if (retryQuery) {
+      var retry = document.createElement("button");
+      retry.className = "browse-action";
+      retry.type = "button";
+      retry.textContent = "Retry";
+      retry.addEventListener("click", function() {
+        loadBrowseItems(retryQuery);
+      });
+      msg.appendChild(retry);
+    }
+
+    browseGrid.appendChild(msg);
+  }
+
+  function renderBrowseError(query, err) {
+    var message = err && err.message ? err.message : String(err || "Unknown error");
+    renderBrowseMessage("error", "Products could not be loaded.", message, query);
+  }
+
+  function renderBrowseItems(items) {
+    browseGrid.innerHTML = "";
+
+    if (!items || items.length === 0) {
+      renderBrowseMessage("empty", "No products found.", "Try another product family or use the search field above.");
+      return;
+    }
+
+    var displayItems = buildBrowseDisplayItems(items);
+    renderBrowseSelect(displayItems);
+
+    displayItems.forEach(function(item) {
+      var card = document.createElement("div");
+      card.className = "browse-card";
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+
+      if (item.image) {
+        var img = document.createElement("img");
+        img.src = item.image;
+        img.alt = item.name;
+        img.setAttribute("crossorigin", "anonymous");
+        img.onerror = function() {
+          // Replace with fallback icon on error
+          this.replaceWith(createFallbackIcon(item.type));
+        };
+        card.appendChild(img);
+      } else {
+        card.appendChild(createFallbackIcon(item.type));
+      }
+
+      var nameDiv = document.createElement("div");
+      nameDiv.className = "browse-name";
+      nameDiv.textContent = item.name;
+      card.appendChild(nameDiv);
+
+      // Type badge
+      var typeLabel = "";
+      if (item.type === "Product.Series") typeLabel = "Series";
+      else if (item.type === "Product.SubSeries") typeLabel = "SubSeries";
+      else if (item.type === "Product.MachineType") typeLabel = "MachineType";
+      else if (item.type === "Product.Model") typeLabel = "Model";
+      else if (item.type === "Browse.Group") typeLabel = browseHistory.length <= 1 ? "Series" : "Model";
+      if (typeLabel) {
+        var typeDiv = document.createElement("div");
+        typeDiv.className = "browse-type";
+        typeDiv.textContent = typeLabel;
+        card.appendChild(typeDiv);
+      }
+      if (item.count) {
+        var countDiv = document.createElement("div");
+        countDiv.className = "browse-count";
+        countDiv.textContent = item.count + " options";
+        card.appendChild(countDiv);
+      }
+
+      card.addEventListener("click", function() {
+        handleBrowseItemClick(item);
+      });
+      card.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleBrowseItemClick(item);
+        }
+      });
+
+      browseGrid.appendChild(card);
+    });
+  }
+
+  function renderBrowseSelect(items) {
+    browseSelect.innerHTML = "";
+    if (!items || items.length === 0) {
+      browseSelectRow.classList.remove("visible");
+      return;
+    }
+
+    var placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = getBrowseSelectPlaceholder();
+    browseSelect.appendChild(placeholder);
+
+    items.forEach(function(item, index) {
+      var option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = item.name + (item.count ? " (" + item.count + ")" : "");
+      browseSelect.appendChild(option);
+    });
+
+    browseSelect.onchange = function() {
+      var idx = parseInt(browseSelect.value, 10);
+      if (!isNaN(idx) && items[idx]) {
+        browseSelect.value = "";
+        handleBrowseItemClick(items[idx]);
+      }
+    };
+    browseSelectRow.classList.add("visible");
+  }
+
+  function getBrowseSelectPlaceholder() {
+    if (browseHistory.length <= 1) return "Choose a series...";
+    if (browseHistory.length === 2) return "Choose a model...";
+    return "Choose a machine type...";
+  }
+
+  function buildBrowseDisplayItems(items) {
+    var depth = browseHistory.length;
+    var scopedItems = filterBrowseItemsForDepth(items, depth);
+
+    if (depth === 1 && shouldGroupBySeries(scopedItems)) {
+      return groupBrowseItems(scopedItems, getSeriesGroup);
+    }
+
+    if (depth === 2 && shouldGroupByModel(scopedItems)) {
+      return groupBrowseItems(scopedItems, getModelGroup);
+    }
+
+    return sortBrowseItems(dedupeBrowseItems(scopedItems));
+  }
+
+  function filterBrowseItemsForDepth(items, depth) {
+    if (depth < 2) return items;
+
+    // Once a series group is selected, hide the series container itself.
+    // Lenovo returns entries like "T-Series" alongside real T14/T15 models;
+    // showing that container again creates a dead-end loop.
+    return items.filter(function(item) {
+      if (item.type === "Product.Series") return false;
+      return getProductPathSegments(item.id).length > 2;
+    });
+  }
+
+  function shouldGroupBySeries(items) {
+    return items.length > 24 && countDistinctGroups(items, getSeriesGroup) > 1;
+  }
+
+  function shouldGroupByModel(items) {
+    return items.length > 18 && countDistinctGroups(items, getModelGroup) > 1;
+  }
+
+  function countDistinctGroups(items, grouper) {
+    var seen = {};
+    items.forEach(function(item) {
+      var group = grouper(item);
+      if (group && group.key) seen[group.key] = true;
+    });
+    return Object.keys(seen).length;
+  }
+
+  function groupBrowseItems(items, grouper) {
+    browseGroups = {};
+    items.forEach(function(item) {
+      var group = grouper(item);
+      if (!group || !group.key) return;
+      if (!browseGroups[group.key]) {
+        browseGroups[group.key] = {
+          id: group.key,
+          name: group.name,
+          type: "Browse.Group",
+          image: item.image || "",
+          count: 0,
+          localItems: [],
+        };
+      }
+      browseGroups[group.key].count += 1;
+      browseGroups[group.key].localItems.push(item);
+      if (!browseGroups[group.key].image && item.image) {
+        browseGroups[group.key].image = item.image;
+      }
+    });
+
+    return Object.keys(browseGroups)
+      .map(function(key) { return browseGroups[key]; })
+      .sort(function(a, b) {
+        return naturalCompare(a.name, b.name);
+      });
+  }
+
+  function getSeriesGroup(item) {
+    var segments = getProductPathSegments(item.id);
+    if (segments.length < 2) return { key: "other", name: "Other ThinkPad" };
+    var seriesSegment = segments[1];
+    return {
+      key: seriesSegment,
+      name: formatSeriesName(seriesSegment),
+    };
+  }
+
+  function getModelGroup(item) {
+    var baseId = getBaseProductId(item.id);
+    return {
+      key: baseId || item.id || item.name,
+      name: cleanBrowseModelName(item.name),
+    };
+  }
+
+  function getProductPathSegments(value) {
+    return String(value || "")
+      .split("/")
+      .map(function(part) { return part.trim(); })
+      .filter(Boolean);
+  }
+
+  function getBaseProductId(value) {
+    var segments = getProductPathSegments(value);
+    if (segments.length > 1 && /^[A-Za-z0-9]{4,}$/i.test(segments[segments.length - 1])) {
+      segments.pop();
+    }
+    if (segments.length > 1 && /^[A-Za-z0-9]{7,}$/i.test(segments[segments.length - 1])) {
+      segments.pop();
+    }
+    return segments.join("/");
+  }
+
+  function formatSeriesName(segment) {
+    var s = String(segment || "").toUpperCase();
+    var map = {
+      "THINKPAD-T-SERIES-LAPTOPS": "T Series Laptops (ThinkPad)",
+      "THINKPAD-X-SERIES-LAPTOPS": "X Series Laptops (ThinkPad)",
+      "THINKPAD-L-SERIES-LAPTOPS": "L Series Laptops (ThinkPad)",
+      "THINKPAD-P-SERIES-LAPTOPS": "P Series Laptops (ThinkPad)",
+      "THINKPAD-EDGE-LAPTOPS": "E Series Laptops (ThinkPad)",
+      "THINKPAD-Z-SERIES-LAPTOPS": "Z Series Laptops (ThinkPad)",
+      "THINKPAD-YOGA-SERIES-LAPTOPS": "Yoga Series Laptops (ThinkPad)",
+      "THINKPAD-11E-SERIES-LAPTOPS": "11e Series Laptops (ThinkPad)",
+      "THINKPAD-A-SERIES-LAPTOPS": "A Series Laptops (ThinkPad)",
+      "THINKBOOK-SERIES": "ThinkBook Laptops",
+      "YOGA-SERIES": "Yoga Series Laptops",
+      "IDEAPAD-S-SERIES-NETBOOKS": "S Series Laptops (IdeaPad)",
+      "LENOVO-B-SERIES-LAPTOPS": "B Series Laptops (Lenovo)",
+      "LEGION-SERIES": "Legion Series Laptops",
+      "300-SERIES": "300 Series Laptops (IdeaPad)",
+      "3-SERIES": "3 Series Laptops (IdeaPad)",
+      "5-SERIES": "5 Series Laptops (IdeaPad)",
+      "7-SERIES": "7 Series Laptops (IdeaPad)",
+    };
+    if (map[s]) return map[s];
+
+    return s
+      .replace(/^THINKPAD-/, "")
+      .replace(/-LAPTOPS$/, "")
+      .replace(/-SERIES$/, " Series")
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, function(ch) { return ch.toUpperCase(); });
+  }
+
+  function cleanBrowseModelName(name) {
+    return String(name || "Unknown")
+      .replace(/\s*-\s*Type\s+[A-Za-z0-9]{4}\b.*$/i, "")
+      .replace(/\s*-\s*Model\s+[A-Za-z0-9]+\b.*$/i, "")
+      .replace(/\s+Laptop[s]?\s*\(ThinkPad\)/i, "")
+      .replace(/\s+Laptop[s]?$/i, "")
+      .replace(/\s*\(ThinkPad\)\s*$/i, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function dedupeBrowseItems(items) {
+    var seen = {};
+    var out = [];
+    items.forEach(function(item) {
+      var key = item.type + "|" + (item.id || item.name);
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(item);
+    });
+    return out;
+  }
+
+  function sortBrowseItems(items) {
+    return items.slice().sort(function(a, b) {
+      return naturalCompare(cleanBrowseModelName(a.name), cleanBrowseModelName(b.name));
+    });
+  }
+
+  function naturalCompare(a, b) {
+    return String(a || "").localeCompare(String(b || ""), undefined, { numeric: true, sensitivity: "base" });
+  }
+
+  function createFallbackIcon(type) {
+    var div = document.createElement("div");
+    div.className = "browse-icon";
+    div.innerHTML = typeIcons[type] || typeIcons["Product.MachineType"];
+    return div;
+  }
+
+  function handleBrowseItemClick(item) {
+    if (item.type === "Browse.Group") {
+      browseHistory.push({ name: item.name, query: item.id, localItems: item.localItems });
+      browseHeader.textContent = item.name;
+      browseBreadcrumb.style.display = "flex";
+      renderBreadcrumb();
+      renderBrowseItems(item.localItems);
+      return;
+    }
+
+    if (item.type === "Product.Series" || item.type === "Product.SubSeries") {
+      browseInto(item.name, item.id);
+      return;
+    }
+
+    var searchTerm = normalizeSearchTerm(item.id || item.name || "");
+    serialInput.value = searchTerm;
+    doSearch();
+  }
+
+  function extractMtmFromProductId(value) {
+    if (!value) return "";
+    var parts = String(value).trim().split("/");
+    for (var i = parts.length - 1; i >= 0; i--) {
+      var part = parts[i].trim();
+      if (/^[A-Za-z0-9]{4}$/.test(part)) {
+        return part.toUpperCase();
+      }
+    }
+    return "";
+  }
+
+  function normalizeSearchTerm(value) {
+    var raw = String(value || "").trim();
+    if (!raw) return "";
+    if (raw.indexOf("/") >= 0) {
+      return extractMtmFromProductId(raw) || raw;
+    }
+    return raw;
+  }
+
+  function getMachineDisplay(product) {
+    var p = product || {};
+    if (p.mtm) return p.mtm;
+
+    var name = p.name || "";
+    var typeMatches = [];
+    var typeRe = /\bType\s+([A-Za-z0-9]{4})\b/gi;
+    var match;
+    while ((match = typeRe.exec(name)) !== null) {
+      if (typeMatches.indexOf(match[1].toUpperCase()) === -1) {
+        typeMatches.push(match[1].toUpperCase());
+      }
+    }
+    if (typeMatches.length > 0) return typeMatches.join(" / ");
+
+    if (p.type && String(p.type).indexOf("Product.") !== 0) return p.type;
+
+    return extractMtmFromProductId(p.id || "");
   }
 
   // ---- Search ----
@@ -1211,8 +2183,85 @@ footer {
     if (e.key === "Enter") doSearch();
   });
 
+  // ---- Product autocomplete (Bug 3: Model/MTM search) ----
+  var searchDropdown = document.getElementById("search-dropdown");
+  var debounceTimer = null;
+
+  serialInput.addEventListener("input", function() {
+    var val = serialInput.value.trim();
+    clearTimeout(debounceTimer);
+
+    // If it looks like a serial (8+ chars, alphanumeric), skip dropdown
+    if (/^[A-Za-z0-9]{8,}$/.test(val)) {
+      hideDropdown();
+      return;
+    }
+
+    if (val.length < 3) {
+      hideDropdown();
+      return;
+    }
+
+    debounceTimer = setTimeout(function() {
+      searchProducts(val);
+    }, 400);
+  });
+
+  // Hide dropdown when clicking outside
+  document.addEventListener("click", function(e) {
+    if (!e.target.closest(".search-wrapper")) {
+      hideDropdown();
+    }
+  });
+
+  function hideDropdown() {
+    searchDropdown.classList.remove("visible");
+    searchDropdown.innerHTML = "";
+  }
+
+  function searchProducts(query) {
+    var __tauri = null;
+    try { __tauri = window.__TAURI__; } catch(e) {}
+
+    if (!__tauri) return; // Only works in Tauri desktop mode
+
+    __tauri.core.invoke("search_products", { query: query })
+      .then(function(products) {
+        if (products.length === 0) {
+          hideDropdown();
+          return;
+        }
+        searchDropdown.innerHTML = "";
+        products.slice(0, 15).forEach(function(p) {
+          var item = document.createElement("div");
+          item.className = "search-dropdown-item";
+          var nameSpan = document.createElement("span");
+          nameSpan.className = "item-name";
+          nameSpan.textContent = p.name;
+          var mtmSpan = document.createElement("span");
+          mtmSpan.className = "item-mtm";
+          mtmSpan.textContent = p.mtm ? "(" + p.mtm + ")" : "";
+          item.appendChild(nameSpan);
+          item.appendChild(mtmSpan);
+          item.addEventListener("click", function() {
+            // Fill the search input with the serial or MTM and search
+            var searchVal = p.mtm || extractMtmFromProductId(p.id) || query;
+            serialInput.value = searchVal;
+            hideDropdown();
+            doSearch();
+          });
+          searchDropdown.appendChild(item);
+        });
+        searchDropdown.classList.add("visible");
+      })
+      .catch(function() {
+        hideDropdown();
+      });
+  }
+
   function doSearch() {
-    var serial = serialInput.value.trim();
+    var serial = normalizeSearchTerm(serialInput.value);
+    serialInput.value = serial;
     if (!serial) {
       showError("Please enter a serial number.");
       return;
@@ -1238,6 +2287,10 @@ footer {
           expandedCards = {};
           activeCategories = {};
           activePriorities = {};
+          activeOsFilters = {};
+          sortMode = "default";
+          sortSelect.value = sortMode;
+          updateOsPillUI();
           allExpanded = false;
           updateExpandCollapseBtn();
           welcomeState.classList.add("hidden");
@@ -1262,6 +2315,10 @@ footer {
           expandedCards = {};
           activeCategories = {};
           activePriorities = {};
+          activeOsFilters = {};
+          sortMode = "default";
+          sortSelect.value = sortMode;
+          updateOsPillUI();
           allExpanded = false;
           updateExpandCollapseBtn();
           welcomeState.classList.add("hidden");
@@ -1287,6 +2344,10 @@ footer {
   // ---- Filter input ----
   filterInput.addEventListener("input", function() {
     currentFilter = this.value.toLowerCase();
+    renderDrivers();
+  });
+  sortSelect.addEventListener("change", function() {
+    sortMode = sortSelect.value || "default";
     renderDrivers();
   });
 
@@ -1316,6 +2377,34 @@ footer {
     document.querySelectorAll("[data-priority]").forEach(function(pill) {
       var pri = pill.getAttribute("data-priority");
       pill.classList.toggle("active", !!activePriorities[pri]);
+    });
+  }
+
+  var osAll = document.getElementById("os-all");
+  osAll.addEventListener("click", function() {
+    activeOsFilters = {};
+    updateOsPillUI();
+    renderDrivers();
+  });
+  document.querySelectorAll("[data-os-filter]").forEach(function(pill) {
+    pill.addEventListener("click", function() {
+      var os = this.getAttribute("data-os-filter");
+      if (activeOsFilters[os]) {
+        delete activeOsFilters[os];
+      } else {
+        activeOsFilters[os] = true;
+      }
+      updateOsPillUI();
+      renderDrivers();
+    });
+  });
+
+  function updateOsPillUI() {
+    var anyActive = Object.keys(activeOsFilters).length > 0;
+    osAll.classList.toggle("active", !anyActive);
+    document.querySelectorAll("[data-os-filter]").forEach(function(pill) {
+      var os = pill.getAttribute("data-os-filter");
+      pill.classList.toggle("active", !!activeOsFilters[os]);
     });
   }
 
@@ -1364,6 +2453,24 @@ footer {
     resultsContainer.classList.remove("visible");
     welcomeState.classList.remove("hidden");
   }
+  function resetSearch() {
+    serialInput.value = "";
+    currentData = null;
+    currentWarranty = null;
+    expandedCards = {};
+    allExpanded = false;
+    filterInput.value = "";
+    sortMode = "default";
+    sortSelect.value = sortMode;
+    activeOsFilters = {};
+    updateOsPillUI();
+    hideResults();
+    hideError();
+    hideLoading();
+    // Reset browse state
+    renderBrowseCategories();
+    serialInput.focus();
+  }
 
   // ---- Render results ----
   function renderResults(result) {
@@ -1371,9 +2478,12 @@ footer {
     var p = result.product || {};
     productNameEl.textContent = p.name || "Unknown Device";
     var metaHtml = "";
-    if (p.type) metaHtml += '<span>Type: ' + escHtml(p.type) + '</span>';
+    var machineDisplay = getMachineDisplay(p);
+    if (machineDisplay) metaHtml += '<span>Machine Type: ' + escHtml(machineDisplay) + '</span>';
     if (p.mtm) metaHtml += '<span>MTM: ' + escHtml(p.mtm) + '</span>';
-    metaHtml += '<span>Serial: ' + escHtml(result.serial) + '</span>';
+    var serialVal = result.serial || "";
+    var isRealSerial = serialVal.length >= 8 && /^[A-Za-z0-9]+$/.test(serialVal) && serialVal !== p.mtm;
+    if (isRealSerial) metaHtml += '<span>Serial: ' + escHtml(serialVal) + '</span>';
     productMetaEl.innerHTML = metaHtml;
     productInfoEl.classList.add("visible");
 
@@ -1521,6 +2631,7 @@ footer {
     // Filter drivers
     var anyCatActive = Object.keys(activeCategories).length > 0;
     var anyPriActive = Object.keys(activePriorities).length > 0;
+    var anyOsActive = Object.keys(activeOsFilters).length > 0;
 
     var drivers = currentData.drivers.filter(function(d) {
       // Text filter
@@ -1538,6 +2649,13 @@ footer {
       if (anyPriActive) {
         var pri = (d.priority || "");
         if (!activePriorities[pri]) return false;
+      }
+      // OS filter
+      if (anyOsActive) {
+        var osFlags = getDriverOsFlags(d);
+        if (activeOsFilters.win11 && osFlags.win11) return true;
+        if (activeOsFilters.win10 && osFlags.win10) return true;
+        return false;
       }
       return true;
     });
@@ -1575,6 +2693,13 @@ footer {
 
       var priOrder = { critical: 0, recommended: 1 };
       cats[cat].sort(function(a, b) {
+        if (sortMode === "newest" || sortMode === "oldest") {
+          var da = parseDriverDate(a.released);
+          var db = parseDriverDate(b.released);
+          if (da !== db) {
+            return sortMode === "newest" ? db - da : da - db;
+          }
+        }
         var pa = priOrder[(a.priority || "").toLowerCase()] || 9;
         var pb = priOrder[(b.priority || "").toLowerCase()] || 9;
         return pa - pb;
@@ -1629,7 +2754,7 @@ footer {
     // OS badge — show short OS if available ("Windows 11 (64-bit)" → "Win11")
     var osBadge = document.createElement("span");
     if (d.osKeys && d.osKeys.length > 0) {
-      osBadge.className = "collapsed-os-badge";
+      osBadge.className = "collapsed-os-badge " + osBadgeClass(d);
       var osShort = d.osKeys.map(function(os) {
         var m = os.match(/Windows\s+(\d+)\s/);
         if (m) return "Win" + m[1];
@@ -1646,21 +2771,16 @@ footer {
     released.className = "collapsed-date";
     released.textContent = d.released || "N/A";
 
-    // Meta container: version + date, right-aligned
-    var meta = document.createElement("span");
-    meta.className = "collapsed-meta";
-    meta.appendChild(ver);
-    meta.appendChild(released);
-
     var arrow = document.createElement("span");
     arrow.className = "expand-arrow";
     arrow.textContent = "\u25B6"; // \u25b6
 
     collapsedRow.appendChild(dot);
     collapsedRow.appendChild(title);
+    collapsedRow.appendChild(ver);
+    collapsedRow.appendChild(released);
     collapsedRow.appendChild(badge);
     collapsedRow.appendChild(osBadge);
-    collapsedRow.appendChild(meta);
     collapsedRow.appendChild(arrow);
 
     card.appendChild(collapsedRow);
@@ -1718,17 +2838,20 @@ footer {
     dlLabel.className = "driver-url-label";
     dlLabel.textContent = "Download:";
 
-    var a = document.createElement("a");
+    var a = document.createElement("span");
     a.className = "driver-url";
-    a.href = d.url;
-    a.target = "_blank";
-    a.rel = "noopener";
     a.textContent = d.url;
+    a.style.cursor = "pointer";
+    a.addEventListener("click", function(e) {
+      e.stopPropagation();
+      openExternalUrl(d.url);
+    });
 
     var copyBtn = document.createElement("button");
     copyBtn.className = "copy-btn";
-    copyBtn.textContent = "[copy]";
+    copyBtn.innerHTML = copyIconSvg();
     copyBtn.title = "Copy URL";
+    copyBtn.setAttribute("aria-label", "Copy download URL");
     copyBtn.addEventListener("click", function(e) {
       e.stopPropagation();
       copyToClipboard(d.url, copyBtn);
@@ -1747,17 +2870,20 @@ footer {
       rmLabel.className = "driver-url-label";
       rmLabel.textContent = "Readme:";
 
-      var rmA = document.createElement("a");
+      var rmA = document.createElement("span");
       rmA.className = "driver-url";
-      rmA.href = d.readmeUrl;
-      rmA.target = "_blank";
-      rmA.rel = "noopener";
       rmA.textContent = d.readmeUrl;
+      rmA.style.cursor = "pointer";
+      rmA.addEventListener("click", function(e) {
+        e.stopPropagation();
+        openExternalUrl(d.readmeUrl);
+      });
 
       var rmCopyBtn = document.createElement("button");
       rmCopyBtn.className = "copy-btn";
-      rmCopyBtn.textContent = "[copy]";
+      rmCopyBtn.innerHTML = copyIconSvg();
       rmCopyBtn.title = "Copy URL";
+      rmCopyBtn.setAttribute("aria-label", "Copy readme URL");
       rmCopyBtn.addEventListener("click", function(e) {
         e.stopPropagation();
         copyToClipboard(d.readmeUrl, rmCopyBtn);
@@ -1881,6 +3007,38 @@ footer {
     return card;
   }
 
+  function getDriverOsFlags(d) {
+    var keys = (d && d.osKeys) || [];
+    var joined = keys.join(" ").toLowerCase();
+    return {
+      win11: joined.indexOf("windows 11") >= 0,
+      win10: joined.indexOf("windows 10") >= 0,
+    };
+  }
+
+  function osBadgeClass(d) {
+    var flags = getDriverOsFlags(d);
+    if (flags.win11 && flags.win10) return "os-mixed";
+    if (flags.win11) return "os-win11";
+    if (flags.win10) return "os-win10";
+    return "";
+  }
+
+  function parseDriverDate(value) {
+    if (!value) return 0;
+    var s = String(value).trim();
+    var parsed = Date.parse(s);
+    if (!isNaN(parsed)) return parsed;
+
+    var m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+
+    m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+    if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime();
+
+    return 0;
+  }
+
   // ---- Render warranty ----
   function renderWarranty() {
     if (!currentWarranty || Object.keys(currentWarranty).length === 0) {
@@ -1982,9 +3140,19 @@ footer {
 
   function priorityDot(pri) {
     var p = (pri || "").toLowerCase();
-    if (p === "critical") return '<span style="color:#E2231A;font-size:10px">●</span>';
-    if (p === "recommended") return '<span style="color:#FFB900;font-size:10px">●</span>';
-    return '<span style="color:#888;font-size:10px">●</span>';
+    if (p === "critical") return '<span style="color:#E2231A;font-size:14px;line-height:1">●</span>';
+    if (p === "recommended") return '<span style="color:#FFB900;font-size:14px;line-height:1">●</span>';
+    return '<span style="color:#888;font-size:14px;line-height:1">●</span>';
+  }
+
+  function openExternalUrl(url) {
+    var __tauri = null;
+    try { __tauri = window.__TAURI__; } catch(e) {}
+    if (__tauri && __tauri.opener && __tauri.opener.openUrl) {
+      __tauri.opener.openUrl(url);
+    } else {
+      window.open(url, '_blank');
+    }
   }
 
   function escHtml(s) {
@@ -1993,12 +3161,20 @@ footer {
     return d.innerHTML;
   }
 
+  function copyIconSvg() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+  }
+
+  function checkIconSvg() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>';
+  }
+
   function copyToClipboard(text, btn) {
     navigator.clipboard.writeText(text).then(function() {
-      btn.textContent = "\u2713";
+      btn.innerHTML = checkIconSvg();
       btn.classList.add("copied");
       setTimeout(function() {
-        btn.textContent = "[copy]";
+        btn.innerHTML = copyIconSvg();
         btn.classList.remove("copied");
       }, 1500);
     }).catch(function() {
@@ -2010,10 +3186,10 @@ footer {
       ta.select();
       try { document.execCommand("copy"); } catch(e) {}
       document.body.removeChild(ta);
-      btn.textContent = "\u2713";
+      btn.innerHTML = checkIconSvg();
       btn.classList.add("copied");
       setTimeout(function() {
-        btn.textContent = "[copy]";
+        btn.innerHTML = copyIconSvg();
         btn.classList.remove("copied");
       }, 1500);
     });

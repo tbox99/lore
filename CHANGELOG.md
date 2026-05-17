@@ -2,6 +2,35 @@
 
 All notable changes to LORE will be documented in this file.
 
+## [1.1.0] — 2026-05-17
+
+### Added
+
+- **Guided Browse by Product** — drill-down navigation matching Lenovo's product hierarchy (Category → Series → SubSeries → Machine Type)
+- **Browse categories** matching Lenovo: Laptops, Desktops & All-in-Ones, Workstations, Tablets, Monitors, Accessories, Chromebook Laptops
+- **Series dropdown navigation** — per-level dropdown selector alongside browse cards
+- **Breadcrumb navigation** for browse path (Home > Laptops > T Series Laptops (ThinkPad) > …)
+- **Driver list CSS Grid layout** — structured columns for name, version, date, priority, OS instead of flex with uneven spacing
+- **Driver sorting** — by Priority, Newest first, Oldest first
+- **OS filter pills** — Win 11 and Win 10 quick-filter buttons
+- **Color-coded OS badges** — Win 11 (blue), Win 10 (green), mixed (purple)
+- **Copy icon button** — SVG clipboard icon replaces `[copy]` text for download/readme URLs; briefly shows checkmark on success
+- **Machine Type display** — extracts MT codes from product name (e.g. `20R3 / 20R4`) instead of raw `Product.SubSeries`
+- **`npm run build:all`** — single command for full Tauri build including AppImage workarounds
+- **`npm run build:appimage`** — AppImage-only build with Arch Linux fixes
+
+### Changed
+
+- **Browse by Product** completely reworked from flat card dump to guided hierarchical drill-down
+- **Priority detection** now reads `item.Priority`, `Files[0].Priority`, `item.PriorityWeight`, and `Files[0].PriorityWeight` — more reliable on varied Lenovo API responses
+- **AppImage build on Arch Linux** — `scripts/tauri-wrapper.mjs` sets `NO_STRIP=1` and creates a temporary local `gdk-pixbuf-2.0.pc` to work around `linuxdeploy` failures (old bundled `strip` can't read `.relr.dyn` sections; Arch's `gdk-pixbuf_binarydir` points to missing directory)
+
+### Fixed
+
+- Browse loop: series containers (e.g. `T-Series`) no longer reappear after already selecting that series
+- Missing priority dots: Critical/Recommended values from alternative API fields are now detected
+- AppImage bundling failure on Arch Linux due to `linuxdeploy` incompatibilities
+
 ## [1.0.0] — 2026-05-16
 
 ### Added

@@ -1,12 +1,14 @@
 {
   "name": "lore",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "LORE — Lenovo Online Research & Equipment",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:all": "node scripts/tauri-wrapper.mjs build",
+    "build:appimage": "node scripts/tauri-wrapper.mjs build --bundles appimage",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "node scripts/tauri-wrapper.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

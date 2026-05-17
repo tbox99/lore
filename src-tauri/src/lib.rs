@@ -5,6 +5,7 @@ pub mod client;
 
 use client::SupportClient;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tauri::State;
 use tokio::sync::Mutex;
 
@@ -124,9 +125,27 @@ async fn search(serial: String, state: State<'_, AppState>) -> Result<SearchResp
     }
 
     let product = &products[0];
+    // Prefer the Mtm field (exact match for this specific device variant)
+    // over extract_machine_type which may pick the first of multiple MTMs in the name.
+    let mtm_val = product.get("Mtm").and_then(|v| v.as_str()).unwrap_or("");
+    let product_type = if !mtm_val.is_empty() {
+        mtm_val.to_string()
+    } else {
+        let raw_type = product.get("Type").and_then(|v| v.as_str()).unwrap_or("");
+        if raw_type.is_empty()
+            || raw_type == "Product.Serial"
+            || raw_type == "Product"
+            || raw_type == "Product.MachineType"
+        {
+            SupportClient::extract_machine_type(product)
+        } else {
+            raw_type.to_string()
+        }
+    };
+
     let product_info = ProductInfo {
         name: product.get("Name").and_then(|v| v.as_str()).unwrap_or("Unknown").into(),
-        product_type: product.get("Type").and_then(|v| v.as_str()).unwrap_or("").into(),
+        product_type,
         mtm: product.get("Mtm").and_then(|v| v.as_str()).unwrap_or("").into(),
         id: product.get("Id").and_then(|v| v.as_str()).unwrap_or("").into(),
         serial: product.get("Serial").and_then(|v| v.as_str()).unwrap_or("").into(),
@@ -168,6 +187,69 @@ async fn search(serial: String, state: State<'_, AppState>) -> Result<SearchResp
         drivers: Some(drivers_data),
         warranty: warranty_data,
     })
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ProductMatch {
+    name: String,
+    mtm: String,
+    id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BrowseItem {
+    id: String,
+    name: String,
+    #[serde(rename = "type")]
+    product_type: String,
+    image: String,
+}
+
+#[tauri::command]
+async fn search_products(query: String, state: State<'_, AppState>) -> Result<Vec<ProductMatch>, String> {
+    let query = query.trim().to_uppercase();
+    if query.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let client = state.client.lock().await;
+    let products = client.lookup_product(&query).await.map_err(|e| e.to_string())?;
+
+    let matches: Vec<ProductMatch> = products
+        .iter()
+        .map(|p| ProductMatch {
+            name: p.get("Name").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
+            mtm: p.get("Mtm").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            id: p.get("Id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        })
+        .collect();
+
+    Ok(matches)
+}
+
+#[tauri::command]
+async fn browse_products(product_id: String, state: State<'_, AppState>) -> Result<Vec<BrowseItem>, String> {
+    let client = state.client.lock().await;
+    let products = client.lookup_product(&product_id).await.map_err(|e| e.to_string())?;
+
+    let items: Vec<BrowseItem> = products
+        .iter()
+        .filter(|p| {
+            let t = p.get("Type").and_then(|v| v.as_str()).unwrap_or("");
+            t == "Product.Series"
+                || t == "Product.SubSeries"
+                || t == "Product.MachineType"
+                || t == "Product.Model"
+        })
+        .map(|p| BrowseItem {
+            id: p.get("Id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            name: p.get("Name").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
+            product_type: p.get("Type").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            image: p.get("Image").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        })
+        .collect();
+
+    Ok(items)
 }
 
 #[tauri::command]
@@ -243,11 +325,7 @@ fn prepare_drivers_data(
                 .and_then(|v| v.as_str())
                 .unwrap_or("N/A")
                 .into(),
-            priority: first_file
-                .and_then(|f| f.get("Priority"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("N/A")
-                .into(),
+            priority: extract_priority(item, first_file),
             url: first_file
                 .and_then(|f| f.get("URL"))
                 .and_then(|v| v.as_str())
@@ -312,6 +390,41 @@ fn short_title(title: &str) -> String {
     title.trim_end_matches(|c| c == ' ' || c == '-').to_string()
 }
 
+fn extract_priority(item: &Value, first_file: Option<&Value>) -> String {
+    let priority = item
+        .get("Priority")
+        .and_then(|v| v.as_str())
+        .or_else(|| first_file.and_then(|f| f.get("Priority")).and_then(|v| v.as_str()))
+        .map(normalize_priority);
+
+    if let Some(p) = priority {
+        return p;
+    }
+
+    let weight = item
+        .get("PriorityWeight")
+        .and_then(|v| v.as_i64())
+        .or_else(|| first_file.and_then(|f| f.get("PriorityWeight")).and_then(|v| v.as_i64()));
+
+    match weight {
+        Some(w) if w >= 3 => "Critical".to_string(),
+        Some(w) if w >= 2 => "Recommended".to_string(),
+        _ => "Optional".to_string(),
+    }
+}
+
+fn normalize_priority(value: &str) -> String {
+    match value.trim().to_lowercase().as_str() {
+        "critical" => "Critical".to_string(),
+        "recommended" => "Recommended".to_string(),
+        "optional" => "Optional".to_string(),
+        "n/a" | "na" | "" => "Optional".to_string(),
+        other if other.contains("critical") => "Critical".to_string(),
+        other if other.contains("recommend") => "Recommended".to_string(),
+        _ => "Optional".to_string(),
+    }
+}
+
 /// Convert epoch milliseconds to YYYY-MM-DD string
 fn epoch_ms_to_date(epoch_ms: Option<i64>) -> String {
     match epoch_ms {
@@ -356,10 +469,11 @@ pub fn run() {
     env_logger::init();
     let client = SupportClient::new();
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             client: Mutex::new(client),
         })
-        .invoke_handler(tauri::generate_handler![search, fetch_readme, clear_cache])
+        .invoke_handler(tauri::generate_handler![search, search_products, browse_products, fetch_readme, clear_cache])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

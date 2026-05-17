@@ -404,15 +404,33 @@ impl SupportClient {
 
     /// Extract machine type from a product dict.
     pub fn extract_machine_type(product: &Value) -> String {
+        // Strategy: find the *most specific* machine type.
+        // Product names like "T14s Gen 4 (Type 21F8, 21F9) - Type 21F9"
+        // contain multiple MTMs. The LAST "- Type XXXX" suffix is the specific variant.
+
         if let Some(name) = product.get("Name").and_then(|v| v.as_str()) {
-            let re = Regex::new(r"Type\s+(\w{4})").unwrap();
-            if let Some(caps) = re.captures(name) {
+            // Check for "- Type XXXX" suffix first (most specific)
+            let suffix_re = Regex::new(r"-\s*Type\s+(\w{4})\s*$").unwrap();
+            if let Some(caps) = suffix_re.captures(name) {
                 if let Some(m) = caps.get(1) {
                     return m.as_str().to_string();
                 }
             }
+
+            // Fallback: last "Type XXXX" occurrence in the name
+            let all_types_re = Regex::new(r"Type\s+(\w{4})").unwrap();
+            let mut last_match = None;
+            for cap in all_types_re.captures_iter(name) {
+                if let Some(m) = cap.get(1) {
+                    last_match = Some(m.as_str().to_string());
+                }
+            }
+            if let Some(m) = last_match {
+                return m;
+            }
         }
 
+        // Fallback: extract 4-char MTM from Id path segments
         if let Some(id) = product.get("Id").and_then(|v| v.as_str()) {
             let parts: Vec<&str> = id.trim_end_matches('/').split('/').collect();
             let re = Regex::new(r"^\w{4}$").unwrap();

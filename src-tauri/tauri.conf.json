@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/tauri-v2/main/tooling/cli/schema.json",
   "productName": "LORE",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "identifier": "com.lenovo.lore",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://pcsupport.lenovo.com"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://download.lenovo.com https://p2-a0782e19f5f6d8f5cb4688ef7e752b31.images.hereapi.com; connect-src 'self' https://pcsupport.lenovo.com"
     }
   },
   "bundle": {
