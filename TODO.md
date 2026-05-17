@@ -71,13 +71,14 @@
 - [x] Driver date sorting (newest/oldest)
 - [x] Robust driver priority extraction from download item, file entry, or priority weight
 - [x] Replace visible `[copy]` labels with copy/check icons for download and readme URLs
-- [ ] Product images may not load (Lenovo CDN) — fallback SVG icons are in place but should be tested
+- [ ] Product images may not load (Lenovo CDN) — currently SVG fallback only, acceptable for now, keep on radar
 - [x] Browse card layout responsiveness (narrow windows)
 - [x] Add "or browse products below" hint text under search bar on welcome screen
 
 ### 🟡 General polish
 
-- [ ] Retest warranty tab after Lenovo API maintenance ends (May 17)
+- [ ] Retest warranty tab after Lenovo API maintenance ends (May 17 ~13:00 MEZ)
+- [ ] Show LORE version number in the app UI (e.g. in header or footer)
 - [x] Test Windows portable exe
 - [ ] Consider CSP hardening for production
-- [ ] Search placeholder says "serial number, MTM, or model name" — verify MTM search works end-to-end on NEXUS
+- [x] Search placeholder says "serial number, MTM, or model name" — MTM search verified on NEXUS

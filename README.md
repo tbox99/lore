@@ -166,10 +166,12 @@ rm -rf ~/.local/share/lore/
 rm -f ~/.local/bin/lore
 ```
 
+## Disclaimer
+
+LORE is not affiliated with, endorsed by, or connected to Lenovo Group Limited or any of its subsidiaries.
+Lenovo, ThinkPad, IdeaPad, Yoga, and other product names are trademarks of their respective owners.
+LORE uses publicly available Lenovo Support APIs that require no authentication or special access.
+
 ## License
 
-See [LICENSE](LICENSE).
-
-## Credits
-
-LORE is not affiliated with Lenovo. It uses publicly available Lenovo Support APIs.
+This project is licensed under the [MIT License](LICENSE).
