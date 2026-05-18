@@ -28,23 +28,23 @@ Works on **Windows** and **Linux** as a native desktop app. No terminal, no brow
 
 **AppImage** (recommended — no install needed):
 ```bash
-chmod +x LORE_1.1.1_amd64.AppImage
-./LORE_1.1.1_amd64.AppImage
+chmod +x LORE_1.1.2_amd64.AppImage
+./LORE_1.1.2_amd64.AppImage
 ```
 
 For system-wide access on Arch or custom setups, symlink the AppImage:
 ```bash
-sudo ln -s /path/to/LORE_1.1.1_amd64.AppImage /usr/local/bin/lore
+sudo ln -s /path/to/LORE_1.1.2_amd64.AppImage /usr/local/bin/lore
 ```
 
 **Debian/Ubuntu:**
 ```bash
-sudo dpkg -i LORE_1.1.1_amd64.deb
+sudo dpkg -i LORE_1.1.2_amd64.deb
 ```
 
 **Fedora/RHEL:**
 ```bash
-sudo rpm -i LORE-1.1.1-1.x86_64.rpm
+sudo rpm -i LORE-1.1.2-1.x86_64.rpm
 ```
 
 ### Linux System Requirements

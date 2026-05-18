@@ -74,7 +74,7 @@ impl SupportClient {
         );
         headers.insert(
             REFERER,
-            HeaderValue::from_static("https://pcsupport.lenovo.com/"),
+            HeaderValue::from_static("https://pcsupport.lenovo.com/us/en/warranty-lookup"),
         );
 
         let client = reqwest::Client::builder()
@@ -84,6 +84,7 @@ impl SupportClient {
             .gzip(true)
             .brotli(true)
             .deflate(true)
+            .http1_only()
             .redirect(reqwest::redirect::Policy::limited(10))
             .build()
             .expect("Failed to create HTTP client");
@@ -246,7 +247,7 @@ impl SupportClient {
         let resp = self
             .request_with_retry(
                 reqwest::Method::GET,
-                "https://pcsupport.lenovo.com/us/en/warrantylookup",
+                "https://pcsupport.lenovo.com/us/en/warranty-lookup",
             )
             .await?;
 
@@ -351,7 +352,7 @@ impl SupportClient {
             );
             extra_headers.insert(
                 REFERER,
-                HeaderValue::from_static("https://pcsupport.lenovo.com/us/en/warrantylookup"),
+                HeaderValue::from_static("https://pcsupport.lenovo.com/us/en/warranty-lookup"),
             );
             extra_headers.insert(
                 COOKIE,
