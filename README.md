@@ -116,6 +116,17 @@ npm run build:appimage  # AppImage-only build
 
 > On Arch Linux, `npm run build:all` and `npm run build:appimage` automatically apply workarounds for `linuxdeploy` incompatibilities (old bundled `strip` and missing `gdk-pixbuf` directory).
 
+### Testing & CI
+
+```bash
+cd src-tauri
+cargo fmt --check     # format check
+cargo clippy -- -D warnings  # lint
+cargo test            # unit tests
+```
+
+The CI workflow (`.github/workflows/ci.yml`) runs `cargo fmt`, `cargo clippy`, and `cargo test` on every push and PR to `main`. The unit test suite covers URL allowlisting, priority normalization, date conversion, title shortening, OS key extraction, string array field collection, and Serde roundtrips.
+
 ### Security and Robustness
 
 - Release note fetching is restricted to Lenovo readme hosts: `download.lenovo.com` and `pcsupport.lenovo.com`.

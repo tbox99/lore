@@ -2,6 +2,13 @@
 
 All notable changes to LORE will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Rust unit test suite covering: `is_allowed_readme_url`, `normalize_priority`, `extract_priority`, `epoch_ms_to_date`, `short_title`, `extract_os_keys`, `collect_string_array_field`, and Serde roundtrips for `SearchResponse`, `DriverEntry`, `DriversData`.
+- CI workflow (`.github/workflows/ci.yml`) with `cargo fmt`, `cargo clippy`, and `cargo test` gates on push/PR to `main`.
+
 ## [1.1.1] — 2026-05-17
 
 ### Changed

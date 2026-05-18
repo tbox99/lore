@@ -626,6 +626,242 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    // -----------------------------------------------------------------------
+    // R1: is_allowed_readme_url
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn allowed_readme_url_accepts_download_lenovo() {
+        assert!(is_allowed_readme_url(
+            "https://download.lenovo.com/pccbbs/mobiles/n1mgx13.txt"
+        ));
+    }
+
+    #[test]
+    fn allowed_readme_url_accepts_pcsupport_lenovo() {
+        assert!(is_allowed_readme_url(
+            "https://pcsupport.lenovo.com/us/en/docs/HT518988"
+        ));
+    }
+
+    #[test]
+    fn allowed_readme_url_blocks_http() {
+        assert!(!is_allowed_readme_url(
+            "http://download.lenovo.com/pccbbs/mobiles/n1mgx13.txt"
+        ));
+    }
+
+    #[test]
+    fn allowed_readme_url_blocks_other_hosts() {
+        assert!(!is_allowed_readme_url("https://example.com/readme.txt"));
+    }
+
+    #[test]
+    fn allowed_readme_url_blocks_empty_string() {
+        assert!(!is_allowed_readme_url(""));
+    }
+
+    #[test]
+    fn allowed_readme_url_blocks_invalid_url() {
+        assert!(!is_allowed_readme_url("not a url at all"));
+    }
+
+    #[test]
+    fn allowed_readme_url_blocks_javascript_uri() {
+        assert!(!is_allowed_readme_url("javascript:alert(1)"));
+    }
+
+    #[test]
+    fn allowed_readme_url_blocks_evil_subdomain() {
+        assert!(!is_allowed_readme_url(
+            "https://evil.lenovo.com/pccbbs/mobiles/n1mgx13.txt"
+        ));
+    }
+
+    // -----------------------------------------------------------------------
+    // R2: normalize_priority
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn normalize_priority_exact_cases() {
+        assert_eq!(normalize_priority("Critical"), "Critical");
+        assert_eq!(normalize_priority("critical"), "Critical");
+        assert_eq!(normalize_priority("CRITICAL"), "Critical");
+        assert_eq!(normalize_priority("Recommended"), "Recommended");
+        assert_eq!(normalize_priority("RECOMMENDED"), "Recommended");
+        assert_eq!(normalize_priority("Optional"), "Optional");
+        assert_eq!(normalize_priority("optional"), "Optional");
+    }
+
+    #[test]
+    fn normalize_priority_na_variants() {
+        assert_eq!(normalize_priority("n/a"), "Optional");
+        assert_eq!(normalize_priority("na"), "Optional");
+        assert_eq!(normalize_priority(""), "Optional");
+    }
+
+    #[test]
+    fn normalize_priority_partial_matches() {
+        assert_eq!(normalize_priority("Something-Critical"), "Critical");
+        assert_eq!(normalize_priority("Recommended Update"), "Recommended");
+    }
+
+    #[test]
+    fn normalize_priority_unknown() {
+        assert_eq!(normalize_priority("unknown"), "Optional");
+        assert_eq!(normalize_priority("urgent"), "Optional");
+    }
+
+    // -----------------------------------------------------------------------
+    // R3: extract_priority
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn extract_priority_from_item() {
+        let item = json!({ "Priority": "Critical" });
+        assert_eq!(extract_priority(&item, None), "Critical");
+    }
+
+    #[test]
+    fn extract_priority_from_file_fallback() {
+        let item = json!({});
+        let file = json!({ "Priority": "recommended" });
+        assert_eq!(extract_priority(&item, Some(&file)), "Recommended");
+    }
+
+    #[test]
+    fn extract_priority_weight_critical() {
+        let item = json!({ "PriorityWeight": 3 });
+        assert_eq!(extract_priority(&item, None), "Critical");
+    }
+
+    #[test]
+    fn extract_priority_weight_recommended() {
+        let item = json!({ "PriorityWeight": 2 });
+        assert_eq!(extract_priority(&item, None), "Recommended");
+    }
+
+    #[test]
+    fn extract_priority_weight_optional() {
+        let item = json!({ "PriorityWeight": 1 });
+        assert_eq!(extract_priority(&item, None), "Optional");
+    }
+
+    #[test]
+    fn extract_priority_no_field_defaults_to_optional() {
+        let item = json!({});
+        assert_eq!(extract_priority(&item, None), "Optional");
+    }
+
+    // -----------------------------------------------------------------------
+    // R4: epoch_ms_to_date
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn epoch_ms_to_date_valid() {
+        let result = epoch_ms_to_date(Some(1_700_000_000_000));
+        // 2023-11-14 UTC (depending on exact timestamp)
+        assert!(result.contains('-'), "expected YYYY-MM-DD, got: {}", result);
+        assert_ne!(result, "N/A");
+    }
+
+    #[test]
+    fn epoch_ms_to_date_none() {
+        assert_eq!(epoch_ms_to_date(None), "N/A");
+    }
+
+    // -----------------------------------------------------------------------
+    // R5: short_title
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn short_title_trims_for_windows() {
+        assert_eq!(
+            short_title("Lenovo Audio Driver for Windows"),
+            "Lenovo Audio Driver"
+        );
+    }
+
+    #[test]
+    fn short_title_trims_after_dash() {
+        assert_eq!(
+            short_title("NVIDIA Graphics - Version 1.0"),
+            "NVIDIA Graphics"
+        );
+    }
+
+    #[test]
+    fn short_title_no_match_returns_original() {
+        assert_eq!(short_title("Simple Driver"), "Simple Driver");
+    }
+
+    #[test]
+    fn short_title_empty_string() {
+        assert_eq!(short_title(""), "");
+    }
+
+    #[test]
+    fn short_title_trims_trailing_spaces_and_dashes() {
+        assert_eq!(short_title("Driver Name "), "Driver Name");
+        assert_eq!(short_title("Driver Name-"), "Driver Name");
+    }
+
+    // -----------------------------------------------------------------------
+    // R6: extract_os_keys
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn extract_os_keys_empty_files() {
+        let item = json!({
+            "OperatingSystemKeys": ["Win10"],
+            "Files": []
+        });
+        let files = item.get("Files").and_then(|v| v.as_array());
+        assert_eq!(extract_os_keys(&item, files), vec!["Win10".to_string()]);
+    }
+
+    #[test]
+    fn extract_os_keys_dedup() {
+        let item = json!({
+            "OperatingSystemKeys": ["Win10"],
+            "Files": [
+                { "OperatingSystemKeys": ["Win10"] }
+            ]
+        });
+        let files = item.get("Files").and_then(|v| v.as_array());
+        assert_eq!(extract_os_keys(&item, files), vec!["Win10".to_string()]);
+    }
+
+    #[test]
+    fn extract_os_keys_combines_item_and_file_keys() {
+        let item = json!({
+            "OperatingSystemKeys": ["Win11"],
+            "Files": [
+                { "OperatingSystemKeys": ["Win10"], "OperatingSystems": [] }
+            ]
+        });
+        let files = item.get("Files").and_then(|v| v.as_array());
+        assert_eq!(
+            extract_os_keys(&item, files),
+            vec!["Win10".to_string(), "Win11".to_string()]
+        );
+    }
+
+    #[test]
+    fn extract_os_keys_includes_operating_systems() {
+        let item = json!({
+            "OperatingSystemKeys": [],
+            "Files": [
+                { "OperatingSystemKeys": [], "OperatingSystems": ["Windows 11"] }
+            ]
+        });
+        let files = item.get("Files").and_then(|v| v.as_array());
+        assert_eq!(
+            extract_os_keys(&item, files),
+            vec!["Windows 11".to_string()]
+        );
+    }
+
     #[test]
     fn extracts_os_keys_from_driver_files() {
         let item = json!({
@@ -647,5 +883,134 @@ mod tests {
                 "Windows 11 (64-bit)".to_string()
             ]
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // R7: collect_string_array_field
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn collect_string_array_normal() {
+        let val = json!({ "Tags": ["a", "b"] });
+        let mut set = std::collections::BTreeSet::new();
+        collect_string_array_field(&val, "Tags", &mut set);
+        let expected: std::collections::BTreeSet<String> =
+            ["a", "b"].into_iter().map(String::from).collect();
+        assert_eq!(set, expected);
+    }
+
+    #[test]
+    fn collect_string_array_empty_array() {
+        let val = json!({ "Tags": [] });
+        let mut set = std::collections::BTreeSet::new();
+        collect_string_array_field(&val, "Tags", &mut set);
+        assert!(set.is_empty());
+    }
+
+    #[test]
+    fn collect_string_array_missing_field() {
+        let val = json!({});
+        let mut set = std::collections::BTreeSet::new();
+        collect_string_array_field(&val, "Tags", &mut set);
+        assert!(set.is_empty());
+    }
+
+    #[test]
+    fn collect_string_array_ignores_non_strings() {
+        let val = json!({ "Tags": [1, true, null, "ok"] });
+        let mut set = std::collections::BTreeSet::new();
+        collect_string_array_field(&val, "Tags", &mut set);
+        assert!(set.contains("ok"));
+        assert_eq!(set.len(), 1);
+    }
+
+    #[test]
+    fn collect_string_array_ignores_whitespace_only() {
+        let val = json!({ "Tags": ["  ", "ok", ""] });
+        let mut set = std::collections::BTreeSet::new();
+        collect_string_array_field(&val, "Tags", &mut set);
+        assert!(set.contains("ok"));
+        assert_eq!(set.len(), 1);
+    }
+
+    // -----------------------------------------------------------------------
+    // R8: Serde roundtrip tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn serde_roundtrip_search_response_success() {
+        let resp = SearchResponse {
+            success: true,
+            error: None,
+            serial: Some("PF123ABC".into()),
+            product: None,
+            drivers: None,
+            warranty: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let back: SearchResponse = serde_json::from_str(&json).unwrap();
+        assert!(back.success);
+        assert_eq!(back.serial.as_deref(), Some("PF123ABC"));
+        assert!(back.error.is_none());
+    }
+
+    #[test]
+    fn serde_roundtrip_search_response_error() {
+        let resp = SearchResponse {
+            success: false,
+            error: Some("No products found".into()),
+            serial: None,
+            product: None,
+            drivers: None,
+            warranty: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let back: SearchResponse = serde_json::from_str(&json).unwrap();
+        assert!(!back.success);
+        assert_eq!(back.error.as_deref(), Some("No products found"));
+    }
+
+    #[test]
+    fn serde_roundtrip_driver_entry() {
+        let entry = DriverEntry {
+            title: "Lenovo Audio Driver".into(),
+            short_title: "Lenovo Audio Driver".into(),
+            doc_id: "DOC123".into(),
+            summary: "Fixes audio".into(),
+            category: "Audio".into(),
+            version: "1.0".into(),
+            priority: "Critical".into(),
+            url: "https://example.com".into(),
+            size: "10 MB".into(),
+            sha256: "abc123".into(),
+            released: "2024-01-01".into(),
+            updated: "2024-06-01".into(),
+            require_login: false,
+            os_keys: vec!["Win11".into()],
+            readme_url: "https://download.lenovo.com/readme.html".into(),
+            release_notes: String::new(),
+        };
+        let json = serde_json::to_string(&entry).unwrap();
+        let back: DriverEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.title, "Lenovo Audio Driver");
+        assert_eq!(back.priority, "Critical");
+        assert_eq!(back.os_keys, vec!["Win11".to_string()]);
+        assert!(!back.require_login);
+    }
+
+    #[test]
+    fn serde_roundtrip_drivers_data() {
+        let data = DriversData {
+            serial: "PF123ABC".into(),
+            product_name: "ThinkPad X1".into(),
+            drivers: vec![],
+            categories: vec!["Audio".into(), "BIOS".into()],
+            generated_at: "2024-01-01 00:00 UTC".into(),
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        let back: DriversData = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.serial, "PF123ABC");
+        assert_eq!(back.categories.len(), 2);
+        assert!(back.drivers.is_empty());
     }
 }
