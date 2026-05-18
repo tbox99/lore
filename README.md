@@ -32,6 +32,11 @@ chmod +x LORE_1.1.1_amd64.AppImage
 ./LORE_1.1.1_amd64.AppImage
 ```
 
+For system-wide access on Arch or custom setups, symlink the AppImage:
+```bash
+sudo ln -s /path/to/LORE_1.1.1_amd64.AppImage /usr/local/bin/lore
+```
+
 **Debian/Ubuntu:**
 ```bash
 sudo dpkg -i LORE_1.1.1_amd64.deb
@@ -40,12 +45,6 @@ sudo dpkg -i LORE_1.1.1_amd64.deb
 **Fedora/RHEL:**
 ```bash
 sudo rpm -i LORE-1.1.1-1.x86_64.rpm
-```
-
-**Binary** (Arch or custom setups):
-```bash
-sudo cp lore /usr/local/bin/
-lore
 ```
 
 ### Linux System Requirements
