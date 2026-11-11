@@ -58,16 +58,16 @@ class UpstreamTests(unittest.TestCase):
     def test_declared_oversized_response_is_rejected_before_read(self):
         response = FakeResponse(length=serve.MAX_UPSTREAM_BYTES + 1)
         with patch.object(response, "read1", side_effect=AssertionError("must not read")):
-            with self.assertRaisesRegex(serve.TransportError, "gross"):
+            with self.assertRaisesRegex(serve.TransportError, "too large"):
                 self.fetch(response)
 
     def test_undeclared_oversized_response_is_bounded(self):
         with patch.object(serve, "MAX_UPSTREAM_BYTES", 10):
-            with self.assertRaisesRegex(serve.TransportError, "gross"):
+            with self.assertRaisesRegex(serve.TransportError, "too large"):
                 self.fetch(FakeResponse(b"x" * 11))
 
     def test_short_response_is_not_success(self):
-        with self.assertRaisesRegex(serve.TransportError, "unvollstaendig"):
+        with self.assertRaisesRegex(serve.TransportError, "incomplete"):
             self.fetch(FakeResponse(b"short", 100))
 
     def test_compressed_and_error_statuses_are_not_success(self):
@@ -77,7 +77,7 @@ class UpstreamTests(unittest.TestCase):
 
     def test_redirects_are_never_followed(self):
         for target in ["https://evil.example/a", "https://download.lenovo.com/other.xml"]:
-            with self.assertRaisesRegex(serve.TransportError, "Weiterleitung"):
+            with self.assertRaisesRegex(serve.TransportError, "redirect"):
                 serve.NoRedirect().redirect_request(None, None, 302, "Found", {}, target)
 
 

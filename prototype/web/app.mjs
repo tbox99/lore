@@ -1,18 +1,22 @@
 import { importCdat } from './core/cdat.mjs';
 import { fetchCatalog, fetchPackage, fetchReadme } from './core/lenovo.mjs';
+import { formatMessage } from './core/messages.mjs';
+import { translate, translations } from './i18n.mjs';
 
 const $ = (id) => document.getElementById(id);
-const state = { snapshot: null, catalog: null, package: null, selectedPackage: null, importing: false, importSeq: 0, catalogSeq: 0, detailSeq: 0, readmeSeq: 0 };
+const preferences = readPreferences();
+const t = (key, params = {}) => translate(key, params, preferences.language);
+const locale = () => preferences.language === 'de' ? 'de-DE' : 'en-US';
+const uiMessages = new Map();
+let sourceView = null;
+const state = { readmeLoading: false, catalogQuery: null, snapshot: null, catalog: null, package: null, selectedPackage: null, importing: false, importSeq: 0, catalogSeq: 0, detailSeq: 0, readmeSeq: 0 };
 let catalogController = null;
 let detailController = null;
 let readmeController = null;
 let dragDepth = 0;
-const number = new Intl.NumberFormat('de-DE');
-const fieldLabels = [
-  ['model', 'Modell'], ['mtm', 'Machine Type Model'], ['serial', 'Seriennummer'], ['bios', 'BIOS'],
-  ['ec', 'Embedded Controller'], ['meFirmware', 'Intel ME Firmware'], ['os', 'Betriebssystem'],
-  ['build', 'Windows-Build'], ['capturedAt', 'Erfassungszeit laut Quelle'], ['cdatVersion', 'CDAT-Version'],
-];
+const number = { format: (value) => new Intl.NumberFormat(locale()).format(value) };
+const fieldLabels = ['model', 'mtm', 'serial', 'bios', 'ec', 'meFirmware', 'os', 'build', 'capturedAt', 'cdatVersion'];
+
 
 function node(tag, className, text) {
   const el = document.createElement(tag);
@@ -25,16 +29,23 @@ function bytes(value) {
   if (!Number.isFinite(size) || size < 0) return '–';
   if (size < 1024) return `${number.format(size)} B`;
   const unit = Math.min(3, Math.floor(Math.log(size) / Math.log(1024)));
-  return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }).format(size / 1024 ** unit)} ${['B', 'KiB', 'MiB', 'GiB'][unit]}`;
+  return `${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(size / 1024 ** unit)} ${['B', 'KiB', 'MiB', 'GiB'][unit]}`;
 }
-function fileName(path) { return String(path || '').split(/[\\/]/).pop() || 'Quelle'; }
-function status(id, message, busy = false) { $(id).textContent = message; $(id).classList.toggle('busy', busy); }
-function error(id, message = '') { $(id).textContent = message; $(id).hidden = !message; }
-function messageOf(err) { return err instanceof Error ? err.message : String(err); }
+function fileName(path) { return String(path || '').split(/[\\/]/).pop() || t('source'); }
+function renderMessage(id) {
+  const message = uiMessages.get(id);
+  const value = typeof message.render === 'function' ? message.render() : message.render;
+  $(id).textContent = value;
+  if (message.isError) $(id).hidden = !value;
+  else $(id).classList.toggle('busy', message.busy);
+}
+function status(id, render, busy = false) { uiMessages.set(id, { render, busy }); renderMessage(id); }
+function error(id, render = '') { uiMessages.set(id, { render, isError: true }); renderMessage(id); }
+function messageOf(err) { return formatMessage(err, preferences.language); }
 function humanTime(value) {
-  if (!value) return 'Zeitpunkt nicht angegeben';
+  if (!value) return t('timeUnknown');
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? String(value) : date.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+  return Number.isNaN(date.valueOf()) ? String(value) : date.toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' });
 }
 function safeLink(url, label) {
   try {
@@ -47,20 +58,26 @@ function safeLink(url, label) {
     return link;
   } catch { return null; }
 }
-function showText(title, text, detail = '', kind = 'ORIGINALQUELLE') {
+function renderSource() {
+  if (!sourceView) return;
+  const { title, text, detail, kind } = sourceView;
   const limit = 250_000;
-  const body = String(text || '');
   $('source-title').textContent = title;
-  $('source-kind').textContent = kind;
-  $('source-detail').textContent = `${detail}${body.length > limit ? ' · Anzeige auf 250.000 Zeichen begrenzt.' : ''}`;
-  $('source-text').textContent = body.slice(0, limit);
+  $('source-kind').textContent = kind === 'readme' ? 'LENOVO README' : t('originalSource');
+  $('source-detail').textContent = `${typeof detail === 'function' ? detail() : detail}${text.length > limit ? t('truncated', { count: number.format(limit) }) : ''}`;
+  // Source content is retained verbatim and does not depend on the display language.
+  if ($('source-text').textContent !== text.slice(0, limit)) $('source-text').textContent = text.slice(0, limit);
+}
+function showText(title, text, detail = '', kind = 'source', returnFocus = null) {
+  sourceView = { title, text: String(text || ''), detail, kind, returnFocus };
+  renderSource();
   $('source-text').scrollTop = 0;
   if (!$('source-dialog').open) $('source-dialog').showModal();
 }
 function sourceButton(path, line, label = null) {
-  if (!path) return node('span', 'subtle', 'Quelle nicht angegeben');
+  if (!path) return node('span', 'subtle', t('sourceUnknown'));
   const hasText = Object.hasOwn(state.snapshot?.texts || {}, path);
-  const display = label || `${fileName(path)}${line ? ` · Z. ${line}` : ''}`;
+  const display = label || `${fileName(path)}${line ? ` · ${t('shortLine', { line })}` : ''}`;
   if (!hasText) {
     const value = node('span', 'subtle', display);
     value.title = path;
@@ -68,8 +85,18 @@ function sourceButton(path, line, label = null) {
   }
   const button = node('button', 'source-button', display);
   button.type = 'button';
-  button.title = `${path}${line ? `, Zeile ${line}` : ''}`;
-  button.addEventListener('click', () => showText(path, state.snapshot.texts[path], line ? `Fundstelle: Zeile ${line}. Originaltext der eingelesenen Datei.` : 'Originaltext der eingelesenen Datei.'));
+  button.dataset.sourcePath = path;
+  button.dataset.sourceLine = String(line ?? '');
+  button.title = `${path}${line ? `, ${t('line', { line })}` : ''}`;
+  button.addEventListener('click', () => {
+    const containerId = button.closest('[id]')?.id;
+    const returnFocus = () => {
+      const container = $(containerId) || document;
+      const current = Array.from(container.querySelectorAll('.source-button')).find(candidate => candidate.dataset.sourcePath === path && candidate.dataset.sourceLine === String(line ?? ''));
+      (button.isConnected ? button : current)?.focus();
+    };
+    showText(path, state.snapshot.texts[path], () => line ? t('originalAtLine', { line }) : t('originalText'), 'source', returnFocus);
+  });
   return button;
 }
 function activateTab(name, focus = false) {
@@ -84,13 +111,13 @@ function activateTab(name, focus = false) {
 function resetLenovo() {
   state.catalogSeq += 1; state.detailSeq += 1; state.readmeSeq += 1;
   catalogController?.abort(); detailController?.abort(); readmeController?.abort();
-  state.catalog = null; state.package = null; state.selectedPackage = null;
+  state.catalog = null; state.package = null; state.selectedPackage = null; state.catalogQuery = null; state.readmeLoading = false;
   $('catalog-content').hidden = true;
   $('package-detail').hidden = true;
   $('catalog-search').value = '';
   $('catalog-button').disabled = state.importing;
   error('catalog-error');
-  status('catalog-status', 'Noch kein Katalog abgerufen.');
+  status('catalog-status', () => t('catalogIdle'));
   status('readme-status', '');
 }
 
@@ -102,67 +129,66 @@ function renderOverview() {
   $('file-tab-count').textContent = number.format(data?.files?.length || 0);
   $('device-grid').replaceChildren(); $('coverage-list').replaceChildren(); $('warning-list').replaceChildren();
   if (!data) {
-    $('capture-title').textContent = state.importing ? 'Aufnahme wird gelesen …' : 'Noch keine Aufnahme geöffnet';
-    $('capture-meta').textContent = 'Ein ZIP genügt für den ersten Überblick.';
-    $('capture-state').textContent = state.importing ? 'Import läuft' : 'Bereit';
+    $('capture-title').textContent = t(state.importing ? 'readingCapture' : 'noCapture');
+    $('capture-meta').textContent = t('capturePrompt');
+    $('capture-state').textContent = t(state.importing ? 'importing' : 'ready');
     $('capture-state').className = 'capture-state';
     return;
   }
   const warnings = data.warnings || [];
-  $('capture-title').textContent = data.device.model || data.device.mtm || 'CDAT-Aufnahme';
-  $('capture-meta').textContent = `${data.archive.fileName || 'CDAT-Archiv'} · ${number.format(data.archive.entryCount)} Dateien · ${bytes(data.archive.totalUncompressedBytes)} entpackt`;
-  $('capture-state').textContent = warnings.length ? `${number.format(warnings.length)} Hinweise` : 'Aufnahme eingelesen';
+  $('capture-title').textContent = data.device.model || data.device.mtm || t('capture');
+  $('capture-meta').textContent = t('captureMeta', { file: data.archive.fileName || t('archive'), count: number.format(data.archive.entryCount), size: bytes(data.archive.totalUncompressedBytes) });
+  $('capture-state').textContent = warnings.length ? t('noticeCount', { count: number.format(warnings.length) }) : t('imported');
   $('capture-state').className = `capture-state ${warnings.length ? 'partial' : 'loaded'}`;
-  for (const [key, label] of fieldLabels) {
+  for (const key of fieldLabels) {
     const item = node('div', 'device-item');
     const value = data.device[key];
-    item.append(node('dt', '', label), node('dd', value ? '' : 'unknown', value || 'Nicht ermittelt'));
+    item.append(node('dt', '', t(key)), node('dd', value ? '' : 'unknown', value || t('notDetermined')));
     const source = data.sources?.[key];
-    if (source?.path) item.append(sourceButton(source.path, source.line, `Quelle${source.line ? ` · Z. ${source.line}` : ''}`));
+    if (source?.path) item.append(sourceButton(source.path, source.line, `${t('source')}${source.line ? ` · ${t('shortLine', { line: source.line })}` : ''}`));
     $('device-grid').append(item);
   }
   for (const coverage of data.coverage || []) {
     const li = node('li');
     const description = node('div');
-    description.append(node('div', 'coverage-name', coverage.label));
-    if (coverage.detail) description.append(node('p', 'coverage-detail', coverage.detail));
+    description.append(node('div', 'coverage-name', formatMessage(coverage.labelDescriptor ?? coverage.label, preferences.language)));
+    if (coverage.detail) description.append(node('p', 'coverage-detail', formatMessage(coverage.detailDescriptor ?? coverage.detail, preferences.language)));
     if (coverage.source) description.append(sourceButton(coverage.source));
     const key = String(coverage.status || '').toLowerCase();
-    const labels = { read: 'Gelesen', parsed: 'Eingelesen', collected: 'Erfasst', available: 'Vorhanden', missing: 'Fehlt in Aufnahme', failed: 'Nicht auswertbar', partial: 'Teilweise', unsupported: 'Nicht unterstützt', unknown: 'Unklar', 'not-collected': 'Nicht erhoben' };
     const cls = ['read', 'parsed', 'collected', 'available'].includes(key) ? 'good' : ['failed', 'partial', 'missing'].includes(key) ? 'caution' : '';
-    li.append(description, node('span', `status-tag ${cls}`, labels[key] || coverage.status || 'Unklar'));
+    li.append(description, node('span', `status-tag ${cls}`, t(Object.hasOwn(translations.en, `status_${key}`) ? `status_${key}` : 'status_unknown')));
     $('coverage-list').append(li);
   }
-  if (!(data.coverage || []).length) $('coverage-list').append(node('li', 'subtle', 'Keine Angaben zur Datenabdeckung verfügbar.'));
+  if (!(data.coverage || []).length) $('coverage-list').append(node('li', 'subtle', t('coverageEmpty')));
   $('warning-count').textContent = number.format(warnings.length);
   for (const warning of warnings) {
-    const li = node('li', '', warning.message);
+    const li = node('li', '', formatMessage(warning.messageDescriptor ?? warning.message, preferences.language));
     if (warning.source) li.append(sourceButton(warning.source, warning.line));
     $('warning-list').append(li);
   }
-  if (!warnings.length) $('warning-list').append(node('li', 'neutral', 'In den ausgewerteten Quellen wurden keine Erfassungshinweise erkannt. Das ist keine vollständige Geräte- oder Fehlerprüfung.'));
+  if (!warnings.length) $('warning-list').append(node('li', 'neutral', t('noticesEmpty')));
 }
 function renderDrivers() {
   const all = state.snapshot?.drivers || [];
-  const query = $('driver-search').value.trim().toLocaleLowerCase('de');
-  const rows = all.filter((item) => `${item.name} ${item.version}`.toLocaleLowerCase('de').includes(query));
+  const query = $('driver-search').value.trim().toLocaleLowerCase(preferences.language);
+  const rows = all.filter((item) => `${item.name} ${item.version}`.toLocaleLowerCase(preferences.language).includes(query));
   $('driver-table').replaceChildren();
   const fragment = document.createDocumentFragment();
   for (const item of rows) {
     const row = node('tr');
-    const source = node('td'); source.append(sourceButton(item.source, item.line, item.line ? `Zeile ${item.line}` : 'Originaldatei'));
+    const source = node('td'); source.append(sourceButton(item.source, item.line, item.line ? t('line', { line: item.line }) : t('originalFile')));
     row.append(node('td', '', item.name), node('td', 'version', item.version), source);
     fragment.append(row);
   }
   $('driver-table').append(fragment);
-  $('driver-result-count').textContent = `${number.format(rows.length)} von ${number.format(all.length)} Einträgen`;
+  $('driver-result-count').textContent = t('entryCount', { shown: number.format(rows.length), total: number.format(all.length) });
   $('drivers-empty').hidden = !!rows.length;
-  $('drivers-empty').textContent = !state.snapshot ? 'Zuerst eine CDAT-Aufnahme öffnen.' : !all.length ? 'Keine Treiberversionen aus der unterstützten Quelle ermittelt.' : 'Keine Treiber passen zum Filter.';
+  $('drivers-empty').textContent = t(!state.snapshot ? 'openFirst' : !all.length ? 'noDrivers' : 'driversFiltered');
 }
 function renderFiles() {
   const all = state.snapshot?.files || [];
-  const query = $('file-search').value.trim().toLocaleLowerCase('de');
-  const rows = all.filter((item) => item.name.toLocaleLowerCase('de').includes(query));
+  const query = $('file-search').value.trim().toLocaleLowerCase(preferences.language);
+  const rows = all.filter((item) => item.name.toLocaleLowerCase(preferences.language).includes(query));
   $('file-table').replaceChildren();
   const fragment = document.createDocumentFragment();
   for (const item of rows) {
@@ -170,14 +196,14 @@ function renderFiles() {
     const name = node('td', 'file-path');
     const read = Object.hasOwn(state.snapshot.texts || {}, item.name);
     name.append(read ? sourceButton(item.name, null, item.name) : node('span', '', item.name));
-    const processing = node('td'); processing.append(node('span', `status-tag ${read ? 'good' : ''}`, read ? 'Text eingelesen' : 'Nur Verzeichnis'));
+    const processing = node('td'); processing.append(node('span', `status-tag ${read ? 'good' : ''}`, t(read ? 'textRead' : 'directoryOnly')));
     row.append(name, node('td', 'numeric', bytes(item.size)), processing);
     fragment.append(row);
   }
   $('file-table').append(fragment);
-  $('file-result-count').textContent = `${number.format(rows.length)} von ${number.format(all.length)} Dateien`;
+  $('file-result-count').textContent = t('fileCount', { shown: number.format(rows.length), total: number.format(all.length) });
   $('files-empty').hidden = !!rows.length;
-  $('files-empty').textContent = state.snapshot ? 'Keine Dateien passen zum Filter.' : 'Zuerst eine CDAT-Aufnahme öffnen.';
+  $('files-empty').textContent = t(state.snapshot ? 'filesFiltered' : 'openFirst');
 }
 function renderSnapshot() { renderOverview(); renderDrivers(); renderFiles(); }
 function setImportBusy(busy) {
@@ -197,7 +223,7 @@ async function loadArchive(file, isDemo = false) {
   $('driver-search').value = ''; $('file-search').value = '';
   $('machine-type').value = '';
   error('app-error');
-  status('app-status', `${file.name || 'CDAT-Archiv'} wird eingelesen …`, true);
+  status('app-status', () => t('readingFile', { file: file.name || t('archive') }), true);
   renderSnapshot();
   try {
     const result = await importCdat(file);
@@ -209,34 +235,38 @@ async function loadArchive(file, isDemo = false) {
     else $('catalog-os').value = 'Win11';
     renderSnapshot();
     activateTab('overview');
-    status('app-status', `${isDemo ? 'Synthetisches Beispiel' : 'Aufnahme'} eingelesen · ${number.format(result.archive.entryCount)} Dateien im Archiv · ${bytes(result.archive.readBytes)} Archivdaten gelesen. Die vollständige Aufnahme bleibt lokal.`);
+    status('app-status', () => t('importComplete', { kind: t(isDemo ? 'syntheticExample' : 'captureNoun'), count: number.format(result.archive.entryCount), size: bytes(result.archive.readBytes) }));
   } catch (err) {
     if (seq !== state.importSeq) return;
-    error('app-error', `Die Aufnahme konnte nicht eingelesen werden: ${messageOf(err)}`);
-    status('app-status', 'Import fehlgeschlagen. Eine andere Datei kann ausgewählt werden.');
+    error('app-error', () => t('importError', { error: messageOf(err) }));
+    status('app-status', () => t('importFailed'));
   } finally {
     if (seq === state.importSeq) { setImportBusy(false); renderOverview(); }
   }
 }
-function packageName(pkg) { try { return new URL(pkg.url).pathname.split('/').pop() || pkg.path; } catch { return pkg.path || pkg.url || 'Paket'; } }
+function packageName(pkg) { try { return new URL(pkg.url).pathname.split('/').pop() || pkg.path; } catch { return pkg.path || pkg.url || t('package'); } }
 function renderCatalog() {
   const catalog = state.catalog;
   $('catalog-content').hidden = !catalog;
   if (!catalog) return;
-  const query = $('catalog-search').value.trim().toLocaleLowerCase('de');
-  const packages = catalog.packages.filter((pkg) => `${pkg.category} ${packageName(pkg)}`.toLocaleLowerCase('de').includes(query));
+  const { machineType, os } = state.catalogQuery;
+  $('catalog-meta').replaceChildren(node('strong', '', t('catalogCount', { count: number.format(catalog.packages.length) })), node('span', '', t('catalogMeta', { type: machineType, os: os === 'Win11' ? 'Windows 11' : 'Windows 10', time: humanTime(catalog.retrievedAt) })));
+  const link = safeLink(catalog.sourceUrl, t('originalCatalog'));
+  if (link) $('catalog-meta').append(link);
+  const query = $('catalog-search').value.trim().toLocaleLowerCase(preferences.language);
+  const packages = catalog.packages.filter((pkg) => `${formatMessage(pkg.categoryDescriptor ?? pkg.category, preferences.language)} ${packageName(pkg)}`.toLocaleLowerCase(preferences.language).includes(query));
   $('catalog-table').replaceChildren();
   const fragment = document.createDocumentFragment();
   for (const pkg of packages) {
     const row = node('tr');
     const action = node('td');
-    const button = node('button', 'row-button', state.selectedPackage === pkg.url && !state.package ? 'Wird geladen …' : 'Details laden');
+    const button = node('button', 'row-button', t(state.selectedPackage === pkg.url && !state.package ? 'loading' : 'loadDetails'));
     button.type = 'button';
     button.disabled = state.selectedPackage === pkg.url && !state.package;
-    button.setAttribute('aria-label', `Details für ${packageName(pkg)} laden`);
+    button.setAttribute('aria-label', t('loadDetailsFor', { package: packageName(pkg) }));
     button.addEventListener('click', () => loadPackage(pkg));
     action.append(button);
-    row.append(node('td', 'package-name', packageName(pkg)), node('td', '', pkg.category || 'Nicht angegeben'), action);
+    row.append(node('td', 'package-name', packageName(pkg)), node('td', '', formatMessage(pkg.categoryDescriptor ?? pkg.category, preferences.language) || t('notSpecified')), action);
     fragment.append(row);
   }
   $('catalog-table').append(fragment);
@@ -246,88 +276,94 @@ async function loadCatalog(event) {
   event.preventDefault();
   const machineType = $('machine-type').value.trim().toUpperCase();
   const os = $('catalog-os').value;
-  if (!/^[A-Z0-9]{4}$/.test(machineType)) { error('catalog-error', 'Bitte den vierstelligen Maschinen-Typ eingeben, zum Beispiel 21MM.'); return; }
+  if (!/^[A-Z0-9]{4}$/.test(machineType)) { error('catalog-error', () => t('machineInvalid')); return; }
   resetLenovo();
   const seq = state.catalogSeq;
   catalogController = new AbortController();
   $('catalog-button').disabled = true;
-  status('catalog-status', `Lenovo-Katalog für ${machineType} / ${os === 'Win11' ? 'Windows 11' : 'Windows 10'} wird abgerufen …`, true);
+  status('catalog-status', () => t('fetchingCatalog', { type: machineType, os: os === 'Win11' ? 'Windows 11' : 'Windows 10' }), true);
   try {
     const catalog = await fetchCatalog(machineType, os, { signal: catalogController.signal });
     if (seq !== state.catalogSeq) return;
     state.catalog = catalog;
-    $('catalog-meta').replaceChildren(node('strong', '', `${number.format(catalog.packages.length)} Katalogpakete`), node('span', '', `${machineType} · ${os === 'Win11' ? 'Windows 11' : 'Windows 10'} · Abgerufen ${humanTime(catalog.retrievedAt)}`));
-    const link = safeLink(catalog.sourceUrl, 'Originalkatalog ↗');
-    if (link) $('catalog-meta').append(link);
+    state.catalogQuery = { machineType, os };
     renderCatalog();
-    status('catalog-status', 'Lenovo-Katalog geladen. Paketdetails werden einzeln auf Anfrage abgerufen.');
+    status('catalog-status', () => t('catalogLoaded'));
   } catch (err) {
     if (seq !== state.catalogSeq || err?.name === 'AbortError') return;
-    error('catalog-error', messageOf(err));
-    status('catalog-status', 'Lenovo-Abruf nicht erfolgreich. Die lokale CDAT-Auswertung bleibt verfügbar.');
+    error('catalog-error', () => messageOf(err));
+    status('catalog-status', () => t('catalogFailed'));
   } finally {
     if (seq === state.catalogSeq) $('catalog-button').disabled = state.importing;
   }
+}
+function renderPackage() {
+  const data = state.package;
+  $('package-detail').hidden = !data;
+  if (!data) return;
+  $('package-title').textContent = formatMessage(data.titleDescriptor ?? data.title, preferences.language) || t('package');
+  $('package-fields').replaceChildren();
+  for (const [label, value] of [['packageVersion', data.version], ['packageId', data.id], ['published', data.releaseDate]]) {
+    const field = node('div'); field.append(node('dt', '', t(label)), node('dd', '', value || t('notSpecified'))); $('package-fields').append(field);
+  }
+  $('package-description').textContent = data.description || '';
+  const notes = data.noteDescriptors ?? data.notes;
+  $('package-notes').textContent = Array.isArray(notes) ? notes.map(note => formatMessage(note, preferences.language)).join(' ') : formatMessage(notes || '', preferences.language);
+  $('package-links').replaceChildren();
+  const source = safeLink(data.sourceUrl, t('originalMetadata')); if (source) $('package-links').append(source);
+  if (data.readmeUrl) {
+    const readme = node('button', 'button secondary', t('openReadme')); readme.id = 'readme-button'; readme.type = 'button'; readme.disabled = state.readmeLoading;
+    readme.addEventListener('click', () => loadReadme(data)); $('package-links').append(readme);
+    const link = safeLink(data.readmeUrl, t('readmeLink')); if (link) $('package-links').append(link);
+  } else $('package-links').append(node('span', 'subtle', t('noReadme')));
 }
 async function loadPackage(pkg) {
   detailController?.abort(); readmeController?.abort();
   const seq = ++state.detailSeq;
   state.readmeSeq += 1;
   detailController = new AbortController();
-  state.selectedPackage = pkg.url; state.package = null;
+  state.selectedPackage = pkg.url; state.package = null; state.readmeLoading = false;
   $('package-detail').hidden = true;
   error('catalog-error');
-  status('catalog-status', `Paketdetails für ${packageName(pkg)} werden geladen …`, true);
+  status('catalog-status', () => t('loadingPackage', { package: packageName(pkg) }), true);
   renderCatalog();
   try {
     const data = await fetchPackage(pkg, { signal: detailController.signal });
     if (seq !== state.detailSeq) return;
     state.package = data;
-    $('package-title').textContent = data.title || packageName(pkg);
-    $('package-fields').replaceChildren();
-    for (const [label, value] of [['Paketversion', data.version], ['Paketkennung', data.id], ['Veröffentlicht laut Quelle', data.releaseDate]]) {
-      const field = node('div'); field.append(node('dt', '', label), node('dd', '', value || 'Nicht angegeben')); $('package-fields').append(field);
-    }
-    $('package-description').textContent = data.description || '';
-    $('package-notes').textContent = Array.isArray(data.notes) ? data.notes.join(' ') : (data.notes || '');
-    $('package-links').replaceChildren();
-    const source = safeLink(data.sourceUrl, 'Originalmetadaten ↗'); if (source) $('package-links').append(source);
-    if (data.readmeUrl) {
-      const readme = node('button', 'button secondary', 'Readme als Text öffnen'); readme.type = 'button'; readme.addEventListener('click', () => loadReadme(data, readme)); $('package-links').append(readme);
-      const link = safeLink(data.readmeUrl, 'Readme bei Lenovo ↗'); if (link) $('package-links').append(link);
-    } else $('package-links').append(node('span', 'subtle', 'Keine Readme-URL in den Paketmetadaten gefunden.'));
-    status('readme-status', `Metadaten abgerufen ${humanTime(data.retrievedAt)}. Paketversion ist nicht automatisch die Version jeder enthaltenen Komponente.`);
-    $('package-detail').hidden = false;
-    status('catalog-status', 'Paketdetails geladen. Die Anwendbarkeit auf dieses Gerät wurde noch nicht bewertet.');
+    renderPackage();
+    status('readme-status', () => t('metadataRetrieved', { time: humanTime(data.retrievedAt) }));
+    status('catalog-status', () => t('packageLoaded'));
     $('package-detail').scrollIntoView({ block: 'nearest', behavior: 'instant' });
   } catch (err) {
     if (seq !== state.detailSeq || err?.name === 'AbortError') return;
-    error('catalog-error', messageOf(err));
-    status('catalog-status', 'Paketdetails konnten nicht geladen werden.');
+    error('catalog-error', () => messageOf(err));
+    status('catalog-status', () => t('packageFailed'));
     state.selectedPackage = null;
   } finally { if (seq === state.detailSeq) renderCatalog(); }
 }
-async function loadReadme(pkg, button) {
+async function loadReadme(pkg) {
   readmeController?.abort();
   const seq = ++state.readmeSeq;
   readmeController = new AbortController();
-  button.disabled = true;
-  status('readme-status', 'Readme wird abgerufen …', true);
+  state.readmeLoading = true;
+  if ($('readme-button')) $('readme-button').disabled = true;
+  status('readme-status', () => t('readmeLoading'), true);
   try {
     const data = await fetchReadme(pkg.readmeUrl, { signal: readmeController.signal });
     if (seq !== state.readmeSeq) return;
-    showText(pkg.title || 'Lenovo Readme', data.text, `${data.sourceUrl} · Abgerufen ${humanTime(data.retrievedAt)}. Als Text dargestellt; noch keine automatische Änderungsanalyse.`, 'LENOVO README');
-    status('readme-status', 'Readme geladen. Voraussetzungen und Update-Reihenfolge bitte im Originaltext beachten.');
+    showText(pkg.title || 'Lenovo Readme', data.text, () => t('readmeDetail', { url: data.sourceUrl, time: humanTime(data.retrievedAt) }), 'readme', () => $('readme-button')?.focus());
+    status('readme-status', () => t('readmeLoaded'));
   } catch (err) {
     if (seq !== state.readmeSeq || err?.name === 'AbortError') return;
-    status('readme-status', `Readme konnte nicht geladen werden: ${messageOf(err)}`);
-  } finally { if (seq === state.readmeSeq) button.disabled = false; }
+    status('readme-status', () => t('readmeFailed', { error: messageOf(err) }));
+  } finally { if (seq === state.readmeSeq) { state.readmeLoading = false; if ($('readme-button')) $('readme-button').disabled = false; } }
 }
 
 let zipSupported = false;
 try { new DecompressionStream('deflate-raw'); zipSupported = typeof Blob.prototype.stream === 'function'; } catch { /* Human-readable capability notice below. */ }
 if (!zipSupported) {
-  $('browser-warning').textContent = 'Dieser Browser unterstützt die benötigte ZIP-Dekomprimierung nicht. Bitte einen aktuellen Edge-, Chrome- oder Firefox-Browser verwenden. Der Lenovo-Katalog bleibt separat nutzbar.';
+  $('browser-warning').textContent = t('browserUnsupported');
   $('browser-warning').hidden = false;
   $('archive-input').disabled = true; $('demo-button').disabled = true;
 }
@@ -335,21 +371,21 @@ $('archive-input').addEventListener('change', (event) => { const file = event.ta
 $('demo-button').addEventListener('click', async () => {
   const seq = state.importSeq;
   $('demo-button').disabled = true;
-  error('app-error'); status('app-status', 'Synthetisches Beispiel wird geöffnet …', true);
+  error('app-error'); status('app-status', () => t('demoLoading'), true);
   try {
     const response = await fetch('./demo-cdat.zip', { cache: 'no-store' });
-    if (!response.ok) throw new Error('Die Beispieldatei ist nicht erreichbar.');
+    if (!response.ok) throw Object.assign(new Error('The example file is not available.'), { uiKey: 'demoUnavailable' });
     const blob = await response.blob();
     if (seq !== state.importSeq) return;
-    await loadArchive(new File([blob], 'LORE-Beispiel-CDAT.zip', { type: 'application/zip' }), true);
+    await loadArchive(new File([blob], 'LORE-Example-CDAT.zip', { type: 'application/zip' }), true);
   } catch (err) {
-    if (seq === state.importSeq) { error('app-error', messageOf(err)); status('app-status', 'Beispiel konnte nicht geladen werden.'); }
+    if (seq === state.importSeq) { error('app-error', () => err.uiKey ? t(err.uiKey) : messageOf(err)); status('app-status', () => t('demoFailed')); }
   } finally { if (seq === state.importSeq || !state.importing) $('demo-button').disabled = !zipSupported || state.importing; }
 });
 $('dropzone').addEventListener('dragenter', (event) => { event.preventDefault(); dragDepth += 1; $('dropzone').classList.add('drag-over'); });
 $('dropzone').addEventListener('dragover', (event) => { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'; });
 $('dropzone').addEventListener('dragleave', (event) => { event.preventDefault(); dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) $('dropzone').classList.remove('drag-over'); });
-$('dropzone').addEventListener('drop', (event) => { event.preventDefault(); dragDepth = 0; $('dropzone').classList.remove('drag-over'); const files = event.dataTransfer?.files; if (files?.length > 1) { error('app-error', 'Bitte für diesen Prototyp genau eine CDAT-ZIP-Datei auswählen.'); return; } if (files?.[0]) loadArchive(files[0]); });
+$('dropzone').addEventListener('drop', (event) => { event.preventDefault(); dragDepth = 0; $('dropzone').classList.remove('drag-over'); const files = event.dataTransfer?.files; if (files?.length > 1) { error('app-error', () => t('oneArchive')); return; } if (files?.[0]) loadArchive(files[0]); });
 document.querySelectorAll('[data-tab]').forEach((tab, index, tabs) => {
   tab.addEventListener('click', () => activateTab(tab.dataset.tab));
   tab.addEventListener('keydown', (event) => {
@@ -368,5 +404,46 @@ $('catalog-form').addEventListener('submit', loadCatalog);
 $('machine-type').addEventListener('input', resetLenovo);
 $('catalog-os').addEventListener('change', resetLenovo);
 $('source-close').addEventListener('click', () => $('source-dialog').close());
+$('source-dialog').addEventListener('close', () => sourceView?.returnFocus?.());
 $('source-dialog').addEventListener('click', (event) => { if (event.target === $('source-dialog')) { const box = event.target.getBoundingClientRect(); if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) event.target.close(); } });
-renderSnapshot();
+$('language-select').addEventListener('change', () => {
+  preferences.language = $('language-select').value === 'de' ? 'de' : 'en';
+  savePreferences();
+  applyPreferences();
+});
+$('font-size-select').addEventListener('change', () => {
+  preferences.fontSize = ['standard', 'large', 'extra-large'].includes($('font-size-select').value) ? $('font-size-select').value : 'standard';
+  savePreferences();
+  applyFontSize();
+});
+status('app-status', () => t('readyPrompt'));
+status('catalog-status', () => t('catalogIdle'));
+applyPreferences();
+
+function readPreferences() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem('lore.preferences') || 'null'); } catch { /* Storage may be disabled by browser policy. */ }
+  return {
+    language: saved?.language === 'de' ? 'de' : 'en',
+    fontSize: ['standard', 'large', 'extra-large'].includes(saved?.fontSize) ? saved.fontSize : 'standard',
+  };
+}
+function savePreferences() {
+  try { localStorage.setItem('lore.preferences', JSON.stringify(preferences)); } catch { /* Preferences still work for this page session. */ }
+}
+function applyFontSize() {
+  document.documentElement.dataset.fontSize = preferences.fontSize;
+  $('font-size-select').value = preferences.fontSize;
+}
+function applyPreferences() {
+  document.documentElement.lang = preferences.language;
+  $('language-select').value = preferences.language;
+  applyFontSize();
+  document.querySelectorAll('[data-i18n]').forEach(element => { element.textContent = t(element.dataset.i18n); });
+  for (const attribute of ['aria-label', 'placeholder', 'title']) {
+    document.querySelectorAll(`[data-i18n-${attribute}]`).forEach(element => { element.setAttribute(attribute, t(element.getAttribute(`data-i18n-${attribute}`))); });
+  }
+  if (!zipSupported) $('browser-warning').textContent = t('browserUnsupported');
+  renderSnapshot(); renderCatalog(); renderPackage(); renderSource();
+  for (const id of uiMessages.keys()) renderMessage(id);
+}

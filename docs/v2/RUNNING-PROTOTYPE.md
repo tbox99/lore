@@ -36,13 +36,13 @@ The UI is reachable only on the same machine via 127.0.0.1.
 
 ## Two-minute first check
 
-1. Open the UI and choose **Beispiel laden**. The sample is synthetic:
+1. Open the UI and choose **Load example**. The sample is synthetic:
    three driver rows and seven files, including one deliberate collection error.
-2. Try the **Treiber** filter and a **Quelle** link; verify the dialog closes
-   normally. Inspect **Dateien**.
+2. Try the **Drivers** filter and a **Source** link; verify the dialog closes
+   normally. Inspect **Files**.
 3. Select a real CDAT ZIP. Check model, BIOS and expected driver rows against
    their source. Missing/failed sources must remain explicit.
-4. In **Lenovo-Katalog**, verify machine type and Windows version, then request
+4. In **Lenovo catalog**, verify machine type and Windows version, then request
    the catalog. Load one package's details and its readme.
 5. Record any failed launch, import, browser behavior or network/proxy result.
    Catalog data alone is not an applicability/currentness verdict.
@@ -50,6 +50,24 @@ The UI is reachable only on the same machine via 127.0.0.1.
 CDAT data stays in the browser. Only the selected machine type/OS and subsequent
 Lenovo document paths are requested from Lenovo. No serial number or diagnostic
 archive is sent by this prototype. File input is read-only.
+
+## Language and text size
+
+The interface starts in English, independent of the browser language. Use the
+header controls to switch between English and German and select Standard, Large
+or Extra large text. The default is equivalent to 18 px with standard browser
+settings; larger choices are 20 px and 22 px. Tables and source dialogs scale too,
+and browser zoom remains available.
+
+Both preferences are saved in this browser for the local address. Changing the
+port or browser creates a separate preference scope. If browser storage is
+blocked, the controls still work for the current session. Language changes keep
+the loaded capture, selected tab and filters. Reloading the page keeps preferences,
+but requires opening the CDAT archive again.
+
+CDAT values, filenames and original source/readme text retain their source
+language. Launcher and transport diagnostic messages use English. Additional UI
+languages can be added through the message dictionaries.
 
 ## Current limits
 
@@ -70,7 +88,7 @@ archive is sent by this prototype. File input is read-only.
 Development tests use Node.js 24+ (not required on end-user Windows) and Python:
 
 ```sh
-node --test prototype/tests/import.test.mjs prototype/tests/lenovo.test.mjs
+node --test prototype/tests/*.test.mjs
 python3 -m unittest discover -s prototype/tests -p test_server.py -v
 ```
 

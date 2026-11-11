@@ -51,19 +51,19 @@ test('Proxy HTTP failures remain failures instead of empty current catalog', asy
 
 test('HTML gateway errors are reported as invalid local service responses', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => new Response('<html>Proxy sign-in</html>', { status: 502 }));
-  await assert.rejects(fetchCatalog('21MM', 'Win11'), /erwarteten Format \(HTTP 502\)/);
+  await assert.rejects(fetchCatalog('21MM', 'Win11'), { code: 'lenovo.responseFormat' });
 });
 
 test('Returned upstream identity and required metadata are validated', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({
     url: 'https://evil.example/readme.txt', retrievedAt: new Date().toISOString(), text: 'not Lenovo',
   })));
-  await assert.rejects(fetchReadme('/pccbbs/mobiles/a.txt'), /nicht freigegeben/);
+  await assert.rejects(fetchReadme('/pccbbs/mobiles/a.txt'), { code: 'lenovo.forbiddenUrl' });
   t.mock.restoreAll();
   t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({
     url: 'https://download.lenovo.com/pccbbs/mobiles/a.txt', text: 'missing retrieval time',
   })));
-  await assert.rejects(fetchReadme('/pccbbs/mobiles/a.txt'), /unvollständige Metadaten/);
+  await assert.rejects(fetchReadme('/pccbbs/mobiles/a.txt'), { code: 'lenovo.incompleteMetadata' });
 });
 
 test('A plain-text readme retains provenance and is never treated as HTML', async (t) => {

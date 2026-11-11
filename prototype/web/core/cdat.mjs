@@ -1,10 +1,11 @@
 import { openZip } from './zip.mjs';
+import { message, messageError, formatMessage } from './messages.mjs';
 
 export function decodeText(bytes) {
   if (bytes[0] === 255 && bytes[1] === 254) return new TextDecoder('utf-16le').decode(bytes);
   if (bytes[0] === 254 && bytes[1] === 255) return new TextDecoder('utf-16be').decode(bytes);
   try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
-  catch { throw new Error('Textkodierung nicht eindeutig lesbar; keine automatische Zeichensatz-Vermutung.'); }
+  catch { throw messageError('cdat.encoding'); }
 }
 
 function keyValues(text) {
@@ -36,57 +37,66 @@ export async function importCdat(file) {
   const device = Object.fromEntries(['model', 'mtm', 'serial', 'bios', 'ec', 'meFirmware', 'os', 'build', 'capturedAt', 'cdatVersion'].map(name => [name, null]));
   const findUnique = (pattern, label) => {
     const found = files.filter(entry => pattern.test(entry.name));
-    if (found.length > 1) throw new Error(`Mehrere Quellen für ${label} im Archiv. Bitte eine einzelne CDAT-Aufnahme verwenden.`);
+    if (found.length > 1) throw messageError('cdat.multipleSources', { label });
     return found[0]?.name || null;
   };
-  const manifestPath = findUnique(/(^|\/)FileDetails\.json$/i, 'Dateiverzeichnis');
+  const manifestPath = findUnique(/(^|\/)FileDetails\.json$/i, message('coverage.manifest'));
   const quickPath = findUnique(/(^|\/)CDAT[^/]*-QuickData-[^/]+\.log$/i, 'QuickData');
   const computerPath = findUnique(/(^|\/)CDAT[^/]*-ComputerInfo-[^/]+\.log$/i, 'ComputerInfo');
-  const driverPath = findUnique(/(^|\/)Installed-HWD\/Drivers\.log$/i, 'Gerätetreiber');
-  const issuesPath = findUnique(/(^|\/)CDAT[^/]*-Issues-[^/]+\.log$/i, 'Erfassungsprobleme');
-  if (!manifestPath && !quickPath) throw new Error('Keine unterstützte CDAT-Aufnahme gefunden (FileDetails.json oder QuickData fehlt).');
+  const driverPath = findUnique(/(^|\/)Installed-HWD\/Drivers\.log$/i, message('coverage.drivers'));
+  const issuesPath = findUnique(/(^|\/)CDAT[^/]*-Issues-[^/]+\.log$/i, message('coverage.issues'));
+  if (!manifestPath && !quickPath) throw messageError('cdat.unsupported');
   const roots = new Set([manifestPath, quickPath, computerPath, issuesPath]
     .filter(Boolean).map(path => path.slice(0, path.lastIndexOf('/') + 1).toLowerCase()));
   if (driverPath) roots.add(driverPath.slice(0, -'Installed-HWD/Drivers.log'.length).toLowerCase());
-  if (roots.size > 1) throw new Error('Die Quellen liegen in verschiedenen Aufnahmeordnern. Bitte jede CDAT-Aufnahme als eigenes ZIP öffnen.');
+  if (roots.size > 1) throw messageError('cdat.mixedRoots');
 
-  async function load(path, label) {
-    if (!path) { coverage.push({ label, status: 'missing', source: '', detail: 'Quelldatei fehlt; Zustand nicht ermittelt.' }); return null; }
+  function coverageItem(labelDescriptor, status, source, detailDescriptor) {
+    return { label: formatMessage(labelDescriptor), labelDescriptor, status, source,
+      detail: formatMessage(detailDescriptor), detailDescriptor };
+  }
+  function addWarning(kind, messageDescriptor, source, line = null) {
+    warnings.push({ kind, message: formatMessage(messageDescriptor), messageDescriptor, source, line });
+  }
+  function setDetail(item, descriptor) { item.detailDescriptor = descriptor; item.detail = formatMessage(descriptor); }
+  async function load(path, labelDescriptor) {
+    if (!path) { coverage.push(coverageItem(labelDescriptor, 'missing', '', message('coverage.missing'))); return null; }
     try {
       const text = decodeText(await zip.read(path));
-      if (!text.trim()) throw new Error('Quelldatei ist leer.');
+      if (!text.trim()) throw messageError('cdat.emptySource');
       texts[path] = text;
-      coverage.push({ label, status: 'read', source: path, detail: 'Quelldatei gelesen; kein Vollständigkeitsnachweis.' });
+      coverage.push(coverageItem(labelDescriptor, 'read', path, message('coverage.read')));
       return text;
     } catch (error) {
-      coverage.push({ label, status: 'failed', source: path, detail: error.message });
-      warnings.push({ kind: 'import', message: `${label}: ${error.message}`, source: path, line: null });
+      const detail = error.messageDescriptor || error.message;
+      coverage.push(coverageItem(labelDescriptor, 'failed', path, detail));
+      addWarning('import', message('warning.sourceFailure', { label: labelDescriptor, detail }), path);
       return null;
     }
   }
-  const manifestText = await load(manifestPath, 'CDAT-Dateiverzeichnis');
+  const manifestText = await load(manifestPath, message('coverage.manifest'));
   if (manifestText !== null) {
     try {
       const manifest = JSON.parse(manifestText);
-      if (!manifest || typeof manifest !== 'object' || !Array.isArray(manifest.Files)) throw new Error('Unbekannte Struktur in FileDetails.json.');
+      if (!manifest || typeof manifest !== 'object' || !Array.isArray(manifest.Files)) throw messageError('cdat.manifestStructure');
       for (const [field, key] of [['mtm', 'Mtm'], ['serial', 'Sn'], ['cdatVersion', 'Version']]) {
         const value = manifest[key];
         if (typeof value === 'string' || typeof value === 'number') { device[field] = String(value); sources[field] = { path: manifestPath, line: null }; }
       }
     } catch (error) {
       const item = coverage.find(item => item.source === manifestPath);
-      item.status = 'failed'; item.detail = 'JSON-Struktur nicht auswertbar.';
-      warnings.push({ kind: 'parse', message: 'FileDetails.json ist nicht als CDAT-Verzeichnis auswertbar.', source: manifestPath, line: null });
+      item.status = 'failed'; setDetail(item, message('coverage.invalidJson'));
+      addWarning('parse', message('warning.manifest'), manifestPath);
     }
   }
-  const quickText = await load(quickPath, 'Geräteübersicht');
-  const computerText = await load(computerPath, 'Systeminformationen');
-  const driverText = await load(driverPath, 'Gemeldete Gerätetreiber');
-  const issuesText = await load(issuesPath, 'Erfassungshinweise');
+  const quickText = await load(quickPath, message('coverage.quick'));
+  const computerText = await load(computerPath, message('coverage.computer'));
+  const driverText = await load(driverPath, message('coverage.drivers'));
+  const issuesText = await load(issuesPath, message('coverage.issues'));
   function assign(field, candidate, path) {
     if (!candidate?.value) return;
     if (device[field] && device[field] !== candidate.value) {
-      warnings.push({ kind: 'conflict', message: `Abweichende Angaben für ${field}; die bevorzugte Quelle wird angezeigt.`, source: path, line: candidate.line });
+      addWarning('conflict', message('warning.conflict', { field }), path, candidate.line);
       return;
     }
     if (device[field]) return;
@@ -109,8 +119,8 @@ export async function importCdat(file) {
     const parsed = parseDrivers(driverText, driverPath); drivers = parsed.drivers;
     if (!drivers.length || parsed.skipped.length) {
       const item = coverage.find(item => item.source === driverPath);
-      item.status = drivers.length ? 'partial' : 'failed'; item.detail = `${drivers.length} Zeilen erkannt; ${parsed.skipped.length} nicht eindeutig lesbar.`;
-      warnings.push({ kind: 'parse', message: 'Die Gerätetreibertabelle konnte nur teilweise oder nicht gelesen werden.', source: driverPath, line: parsed.skipped[0] || 1 });
+      item.status = drivers.length ? 'partial' : 'failed'; setDetail(item, message('coverage.driverRows', { read: drivers.length, skipped: parsed.skipped.length }));
+      addWarning('parse', message('warning.driverTable'), driverPath, parsed.skipped[0] || 1);
     }
   }
   for (const [path, text] of [[quickPath, quickText], [computerPath, computerText], [issuesPath, issuesText]]) {
@@ -120,12 +130,12 @@ export async function importCdat(file) {
       const failure = line.match(/FullyQualifiedErrorId\s*:\s*(.*)/i);
       if (!failure || seen.has(failure[1])) return;
       seen.add(failure[1]);
-      warnings.push({ kind: 'collection', message: `Fehlgeschlagene CDAT-Abfrage: ${failure[1].slice(0, 160)}`, source: path, line: index + 1 });
+      addWarning('collection', message('warning.collection', { error: failure[1].slice(0, 160) }), path, index + 1);
       const item = coverage.find(item => item.source === path);
-      if (item?.status === 'read') { item.status = 'partial'; item.detail = 'Datei gelesen; CDAT meldet mindestens eine fehlgeschlagene Abfrage.'; }
+      if (item?.status === 'read') { item.status = 'partial'; setDetail(item, message('coverage.collectionFailure')); }
     });
   }
-  if (!Object.values(device).some(Boolean) && !drivers.length) throw new Error('Die CDAT-Quellen liefern keine auswertbaren Gerätedaten.');
+  if (!Object.values(device).some(Boolean) && !drivers.length) throw messageError('cdat.noDeviceData');
   return {
     device, sources, drivers, warnings, coverage, texts,
     archive: { fileName: file.name || 'CDAT.zip', entryCount: files.length, totalUncompressedBytes: zip.totalUncompressedBytes, readBytes: zip.readBytes },

@@ -1,3 +1,5 @@
+import { message, messageError, formatMessage } from './messages.mjs';
+
 // Lenovo transport and metadata parsing. Package metadata is not an applicability verdict.
 const ORIGIN = 'https://download.lenovo.com';
 const MAX_TEXT = 8 * 1024 * 1024;
@@ -7,18 +9,18 @@ const DOCUMENT_PATH = /^\/pccbbs\/mobiles\/[A-Za-z0-9_.-]+\.(?:xml|txt|html)$/;
 
 export function lenovoUrl(value) {
   if (typeof value !== 'string' || /[\\%\s\x00-\x1f]/.test(value)) {
-    throw new Error('Ungültige Lenovo-Quelladresse.');
+    throw messageError('lenovo.invalidUrl');
   }
   let url;
   try { url = new URL(value, ORIGIN); }
-  catch { throw new Error('Ungültige Lenovo-Quelladresse.'); }
+  catch { throw messageError('lenovo.invalidUrl'); }
   if (url.origin !== ORIGIN || url.username || url.password || url.search || url.hash ||
       (!CATALOG_PATH.test(url.pathname) && !DOCUMENT_PATH.test(url.pathname))) {
-    throw new Error('Diese Quelle ist für den Lenovo-Abruf nicht freigegeben.');
+    throw messageError('lenovo.forbiddenUrl');
   }
   // Reject traversal before URL normalization rather than silently accepting its target.
   if (/(?:^|\/)\.{1,2}(?:\/|$)/.test(value)) {
-    throw new Error('Ungültiger Pfad in der Lenovo-Quelladresse.');
+    throw messageError('lenovo.invalidPath');
   }
   return url;
 }
@@ -36,7 +38,7 @@ async function boundedText(response) {
       bytes += value.byteLength;
       if (bytes > MAX_RESPONSE) {
         await reader.cancel();
-        throw new Error('Die Lenovo-Antwort überschreitet das Größenlimit.');
+        throw messageError('lenovo.responseLimit');
       }
       parts.push(decoder.decode(value, { stream: true }));
     }
@@ -64,22 +66,22 @@ async function requestDocument(value, { signal } = {}) {
     try { result = JSON.parse(await boundedText(response)); }
     catch (error) {
       if (error?.name === 'AbortError' || controller.signal.aborted) throw error;
-      if (error?.message?.includes('Größenlimit')) throw error;
-      throw new Error(`Der lokale Lenovo-Dienst antwortet nicht im erwarteten Format (HTTP ${response.status}).`);
+      if (error?.code === 'lenovo.responseLimit') throw error;
+      throw messageError('lenovo.responseFormat', { status: response.status });
     }
     if (!response.ok) {
       const detail = typeof result?.error === 'string' ? result.error.slice(0, 300) : `HTTP ${response.status}`;
-      throw new Error(`Lenovo-Abruf fehlgeschlagen: ${detail}`);
+      throw messageError('lenovo.requestFailed', { detail });
     }
     if (typeof result?.text !== 'string' || result.text.length > MAX_TEXT ||
         typeof result?.retrievedAt !== 'string' || !Number.isFinite(Date.parse(result.retrievedAt))) {
-      throw new Error('Der lokale Lenovo-Dienst hat unvollständige Metadaten geliefert.');
+      throw messageError('lenovo.incompleteMetadata');
     }
     return { sourceUrl: lenovoUrl(result.url).href, retrievedAt: result.retrievedAt, text: result.text };
   } catch (error) {
-    if (timedOut) throw new Error('Zeitüberschreitung beim Lenovo-Abruf. Bitte Netzwerk oder Proxy prüfen.');
-    if (controller.signal.aborted) throw new DOMException('Abruf abgebrochen.', 'AbortError');
-    if (error instanceof TypeError) throw new Error('Der lokale Lenovo-Dienst ist nicht erreichbar. Bitte den LORE-Starter prüfen.');
+    if (timedOut) throw messageError('lenovo.timeout');
+    if (controller.signal.aborted) throw new DOMException('Request cancelled.', 'AbortError');
+    if (error instanceof TypeError) throw messageError('lenovo.unreachable');
     throw error;
   } finally {
     clearTimeout(timer);
@@ -88,12 +90,12 @@ async function requestDocument(value, { signal } = {}) {
 }
 
 function parseXml(text, expectedRoot) {
-  if (typeof DOMParser === 'undefined') throw new Error('Dieser Browser unterstützt die XML-Auswertung nicht.');
-  if (/<!DOCTYPE|<!ENTITY/i.test(text)) throw new Error('Die Lenovo-XML-Datei enthält eine nicht unterstützte Dokumentdeklaration.');
+  if (typeof DOMParser === 'undefined') throw messageError('lenovo.xmlSupport');
+  if (/<!DOCTYPE|<!ENTITY/i.test(text)) throw messageError('lenovo.xmlDeclaration');
   const doc = new DOMParser().parseFromString(text, 'application/xml');
   if (!doc.documentElement || doc.getElementsByTagName('parsererror').length ||
       doc.documentElement.localName !== expectedRoot) {
-    throw new Error(`Die Lenovo-Antwort ist keine gültige ${expectedRoot}-XML-Datei.`);
+    throw messageError('lenovo.invalidXml', { root: expectedRoot });
   }
   return doc.documentElement;
 }
@@ -111,17 +113,18 @@ function localized(node, element = 'Desc') {
 export function parseCatalog(xml, { sourceUrl, retrievedAt }) {
   const root = parseXml(xml, 'packages');
   const entries = children(root, 'package');
-  if (entries.length > 5000) throw new Error('Der Lenovo-Katalog enthält zu viele Einträge.');
+  if (entries.length > 5000) throw messageError('lenovo.catalogLimit');
   const packages = entries.map(entry => {
     const url = lenovoUrl(text(child(entry, 'location')));
     if (!DOCUMENT_PATH.test(url.pathname) || !url.pathname.endsWith('.xml')) {
-      throw new Error('Der Lenovo-Katalog verweist auf eine ungültige Paketdatei.');
+      throw messageError('lenovo.invalidPackage');
     }
     const checksum = child(entry, 'checksum');
     return {
       url: url.href,
       path: url.pathname,
-      category: text(child(entry, 'category')) || 'Ohne Kategorie',
+      category: text(child(entry, 'category')) || formatMessage(message('lenovo.noCategory')),
+      categoryDescriptor: text(child(entry, 'category')) ? null : message('lenovo.noCategory'),
       checksum: checksum ? { type: checksum.getAttribute('type'), value: text(checksum) } : null,
     };
   });
@@ -130,8 +133,8 @@ export function parseCatalog(xml, { sourceUrl, retrievedAt }) {
 
 export async function fetchCatalog(machineType, os, options = {}) {
   const type = typeof machineType === 'string' ? machineType.trim().toUpperCase() : '';
-  if (!/^[A-Z0-9]{4}$/.test(type)) throw new Error('Bitte den vierstelligen Machine Type eingeben, zum Beispiel 21MM.');
-  if (os !== 'Win10' && os !== 'Win11') throw new Error('Bitte Windows 10 oder Windows 11 wählen.');
+  if (!/^[A-Z0-9]{4}$/.test(type)) throw messageError('lenovo.machineType');
+  if (os !== 'Win10' && os !== 'Win11') throw messageError('lenovo.os');
   const result = await requestDocument(`/catalog/${type}_${os}.xml`, options);
   return parseCatalog(result.text, result);
 }
@@ -141,26 +144,28 @@ export function parsePackage(xml, { sourceUrl, retrievedAt }) {
   const readmeNode = child(child(root, 'Files'), 'Readme');
   const readmeName = text(child(localized(readmeNode, 'File'), 'Name'));
   let readmeUrl = null;
-  const notes = [];
+  const noteDescriptors = [];
   if (readmeName) {
     try {
       if (!/^[A-Za-z0-9_.-]+\.(?:txt|html)$/.test(readmeName)) throw new Error();
       readmeUrl = lenovoUrl(new URL(readmeName, sourceUrl).href).href;
-    } catch { notes.push('Der Readme-Verweis hat ein nicht unterstütztes Format.'); }
+    } catch { noteDescriptors.push(message('lenovo.noteReadme')); }
   }
   const dependencyNode = child(root, 'Dependencies');
-  if (dependencyNode) notes.push('Das Paket enthält Anwendbarkeitsregeln. Diese wurden im Prototyp nicht ausgewertet.');
-  notes.push('Paketversion aus dem Lenovo-Katalog; kein Nachweis für Aktualität oder Anwendbarkeit auf dieses Gerät.');
+  if (dependencyNode) noteDescriptors.push(message('lenovo.noteRules'));
+  noteDescriptors.push(message('lenovo.noteVersion'));
   return {
     sourceUrl,
     retrievedAt,
     id: root.getAttribute('id') || null,
-    title: text(localized(child(root, 'Title'))) || root.getAttribute('name') || 'Lenovo-Paket',
+    title: text(localized(child(root, 'Title'))) || root.getAttribute('name') || formatMessage(message('lenovo.packageTitle')),
+    titleDescriptor: text(localized(child(root, 'Title'))) || root.getAttribute('name') ? null : message('lenovo.packageTitle'),
     version: root.getAttribute('version') || null,
     releaseDate: text(child(root, 'ReleaseDate')),
     readmeUrl,
     description: text(localized(child(root, 'Summary'))) || '',
-    notes,
+    notes: noteDescriptors.map(descriptor => formatMessage(descriptor)),
+    noteDescriptors,
     // A package version is not an installed component's driver version.
     componentVersions: [],
   };
@@ -169,7 +174,7 @@ export function parsePackage(xml, { sourceUrl, retrievedAt }) {
 export async function fetchPackage(pkg, options = {}) {
   const url = lenovoUrl(typeof pkg === 'string' ? pkg : pkg?.url);
   if (!DOCUMENT_PATH.test(url.pathname) || !url.pathname.endsWith('.xml')) {
-    throw new Error('Für Paketdetails wird eine Lenovo-Paket-XML-Datei benötigt.');
+    throw messageError('lenovo.packageXml');
   }
   const result = await requestDocument(url.href, options);
   return parsePackage(result.text, result);
@@ -177,7 +182,7 @@ export async function fetchPackage(pkg, options = {}) {
 
 export function readmePlainText(value, isHtml) {
   if (!isHtml) return value.replace(/^\uFEFF/, '').trim();
-  if (typeof DOMParser === 'undefined') throw new Error('Dieser Browser unterstützt die Readme-Auswertung nicht.');
+  if (typeof DOMParser === 'undefined') throw messageError('lenovo.readmeSupport');
   // This document stays detached. Only text is returned, never nodes/markup.
   const doc = new DOMParser().parseFromString(value, 'text/html');
   for (const node of doc.querySelectorAll('script,style,iframe,object,embed,link,meta,svg,canvas,template')) node.remove();
@@ -190,7 +195,7 @@ export function readmePlainText(value, isHtml) {
 export async function fetchReadme(readmeUrl, options = {}) {
   const url = lenovoUrl(readmeUrl);
   if (!DOCUMENT_PATH.test(url.pathname) || !/\.(?:txt|html)$/.test(url.pathname)) {
-    throw new Error('Für Readmes sind nur Lenovo-Text- und HTML-Dateien erlaubt.');
+    throw messageError('lenovo.readmeType');
   }
   const result = await requestDocument(url.href, options);
   return { ...result, text: readmePlainText(result.text, url.pathname.endsWith('.html')) };

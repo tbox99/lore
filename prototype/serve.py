@@ -53,13 +53,13 @@ class TransportError(Exception):
 def validate_lenovo_path(path: str) -> str:
     # Reject ambiguity, even if a percent-encoded path would decode to an allowed one.
     if not isinstance(path, str) or len(path) > 240 or ".." in path or not PATH_PATTERN.fullmatch(path):
-        raise TransportError("Dieser Lenovo-Pfad ist nicht zugelassen.", 400)
+        raise TransportError("This Lenovo path is not allowed.", 400)
     return path
 
 
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        raise TransportError("Lenovo antwortet mit einer Weiterleitung; sie wurde nicht verfolgt.")
+        raise TransportError("Lenovo returned a redirect; it was not followed.")
 
 
 def fetch_lenovo(path: str) -> dict:
@@ -75,31 +75,31 @@ def fetch_lenovo(path: str) -> dict:
         # honours normal platform/environment proxy settings.
         with build_opener(NoRedirect()).open(request, timeout=UPSTREAM_TIMEOUT) as response:
             if response.status != 200:
-                raise TransportError(f"Lenovo meldet HTTP {response.status}.")
+                raise TransportError(f"Lenovo returned HTTP {response.status}.")
             if response.headers.get("Content-Encoding", "identity").lower() != "identity":
-                raise TransportError("Nicht unterstuetzte Komprimierung der Lenovo-Antwort.")
+                raise TransportError("Unsupported compression in the Lenovo response.")
             length = response.headers.get("Content-Length")
             if length is not None:
                 try:
                     if int(length) < 0 or int(length) > MAX_UPSTREAM_BYTES:
-                        raise TransportError("Die Lenovo-Antwort ist zu gross.")
+                        raise TransportError("The Lenovo response is too large.")
                 except ValueError as exc:
-                    raise TransportError("Ungueltige Laengenangabe in der Lenovo-Antwort.") from exc
+                    raise TransportError("Invalid content length in the Lenovo response.") from exc
             chunks, size = [], 0
             read = getattr(response, "read1", response.read)
             while True:
                 if time.monotonic() - started > UPSTREAM_TIMEOUT:
-                    raise TransportError("Zeitlimit beim Lenovo-Abruf erreicht.", 504)
+                    raise TransportError("The Lenovo request timed out.", 504)
                 chunk = read(min(64 * 1024, MAX_UPSTREAM_BYTES + 1 - size))
                 if not chunk:
                     break
                 size += len(chunk)
                 if size > MAX_UPSTREAM_BYTES:
-                    raise TransportError("Die Lenovo-Antwort ist zu gross.")
+                    raise TransportError("The Lenovo response is too large.")
                 chunks.append(chunk)
             raw = b"".join(chunks)
             if length is not None and size != int(length):
-                raise TransportError("Die Lenovo-Antwort wurde unvollstaendig uebertragen.")
+                raise TransportError("The Lenovo response was incomplete.")
             charset = response.headers.get_content_charset() or "utf-8-sig"
             try:
                 text = raw.decode(charset, errors="replace")
@@ -108,11 +108,11 @@ def fetch_lenovo(path: str) -> dict:
     except TransportError:
         raise
     except HTTPError as exc:
-        raise TransportError(f"Lenovo meldet HTTP {exc.code}. Bitte Quelle und Netzwerk pruefen.") from exc
+        raise TransportError(f"Lenovo returned HTTP {exc.code}. Please check the source and network.") from exc
     except (TimeoutError, socket.timeout) as exc:
-        raise TransportError("Zeitlimit beim Lenovo-Abruf erreicht.", 504) from exc
+        raise TransportError("The Lenovo request timed out.", 504) from exc
     except (URLError, OSError) as exc:
-        raise TransportError("Lenovo ist nicht erreichbar. Verbindung, Proxy und Zertifikate pruefen.") from exc
+        raise TransportError("Lenovo is unreachable. Check the connection, proxy and certificates.") from exc
     return {"url": url, "retrievedAt": datetime.now(timezone.utc).isoformat(), "text": text}
 
 
@@ -172,19 +172,19 @@ class LoreHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if not self._valid_origin():
-            return self._error(403, "Nur Anfragen von der lokalen LORE-Oberflaeche sind erlaubt.")
+            return self._error(403, "Only requests from the local LORE interface are allowed.")
         if len(self.path) > 1024 or not self.path.startswith("/") or self.path.startswith("//"):
-            return self._error(400, "Ungueltiger Anfragepfad.")
+            return self._error(400, "Invalid request path.")
         route = urlsplit(self.path)
         if route.fragment:
-            return self._error(400, "Fragmente sind nicht erlaubt.")
+            return self._error(400, "Fragments are not allowed.")
         if route.path.startswith("/api/"):
             if self.headers.get_all("X-LORE-Request", []) != ["1"]:
-                return self._error(403, "Die Anfrage muss aus der LORE-Oberflaeche kommen.")
+                return self._error(403, "The request must come from the LORE interface.")
             if route.path == "/api/health" and not route.query:
                 return self._json(200, {"version": VERSION, "platform": "python", "localOnly": True})
             if route.path != "/api/lenovo":
-                return self._error(404, "Unbekannte API-Adresse.")
+                return self._error(404, "Unknown API address.")
             try:
                 query = parse_qs(route.query, strict_parsing=True, keep_blank_values=True, max_num_fields=2)
                 if set(query) != {"path"} or len(query["path"]) != 1:
@@ -192,33 +192,33 @@ class LoreHandler(BaseHTTPRequestHandler):
                 result = fetch_lenovo(validate_lenovo_path(query["path"][0]))
                 return self._json(200, result)
             except ValueError:
-                return self._error(400, "Genau ein Lenovo-Pfad wird benoetigt.")
+                return self._error(400, "Exactly one Lenovo path is required.")
             except TransportError as exc:
                 return self._error(exc.status, str(exc))
         if route.query:
-            return self._error(400, "Abfrageparameter sind hier nicht erlaubt.")
+            return self._error(400, "Query parameters are not allowed here.")
         try:
             decoded = unquote(route.path, errors="strict")
         except UnicodeDecodeError:
-            return self._error(400, "Ungueltige Kodierung im Dateipfad.")
+            return self._error(400, "Invalid file path encoding.")
         if "\\" in decoded or "\x00" in decoded or any(part in {".", ".."} or part.startswith(".") for part in decoded.split("/") if part):
-            return self._error(400, "Ungueltiger Dateipfad.")
+            return self._error(400, "Invalid file path.")
         relative = "index.html" if decoded == "/" else decoded.lstrip("/")
         candidate = self.server.web_root / relative
         try:
             resolved = candidate.resolve(strict=True)
             resolved.relative_to(self.server.web_root)
             if not resolved.is_file() or resolved.suffix.lower() not in STATIC_TYPES:
-                return self._error(404, "Datei nicht gefunden.")
+                return self._error(404, "File not found.")
             if resolved.stat().st_size > MAX_STATIC_BYTES:
-                return self._error(413, "Die statische Datei ist zu gross.")
+                return self._error(413, "The static file is too large.")
             body = resolved.read_bytes()
         except (ValueError, OSError, RuntimeError):
-            return self._error(404, "Datei nicht gefunden.")
+            return self._error(404, "File not found.")
         self._send(200, body, STATIC_TYPES[resolved.suffix.lower()])
 
     def _method_not_allowed(self):
-        self._error(405, "Diese Methode wird nicht unterstuetzt.")
+        self._error(405, "This method is not supported.")
 
     do_POST = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_HEAD = _method_not_allowed
 
@@ -233,9 +233,9 @@ def main() -> None:
     try:
         server = LoreServer(args.port)
     except OSError as exc:
-        parser.exit(1, f"LORE kann Port {args.port} nicht oeffnen: {exc}\n")
+        parser.exit(1, f"LORE cannot open port {args.port}: {exc}\n")
     url = f"http://127.0.0.1:{server.server_port}/"
-    print(f"LORE M0: {url}\nBeenden: Ctrl+C. CDAT-Dateien bleiben im Browser.", flush=True)
+    print(f"LORE M0: {url}\nStop: Ctrl+C. CDAT files stay in the browser.", flush=True)
     if not args.no_browser:
         webbrowser.open(url)
     try:

@@ -16,9 +16,10 @@ Status: IMPLEMENTED, platform acceptance PARTIAL. Evidence recorded 2026-11-11.
   unsupported clients receive an explicit notice.
 
 This choice tests the working assumption that corporate Windows should need no
-additional runtime installation. That assumption has not been confirmed by the
-owner or a successful corporate Windows run. The UI/transport arrangement can
-still change based on that test.
+additional runtime installation. The owner's screenshot on 2026-11-11 confirms
+that the UI opened and imported the supplied archive in the intended environment.
+The screenshot does not establish elevation level, proxy access or complete
+corporate compatibility. The UI/transport arrangement remains experimental.
 
 ## Validation evidence
 
@@ -35,9 +36,10 @@ still change based on that test.
 | Local OpenCode Chromium UI acceptance | BLOCKED | Chromium with sandbox enabled exited with 'No usable sandbox!' on OpenCode. Zero browser cases executed; no protections disabled. |
 | Local OpenCode Firefox acceptance | BLOCKED before launch | Remote command allow-list rejected firefox --version. No wrapper retry or screenshot. |
 | Windows PowerShell 5.1 host on GitHub Windows runner | PASS | Six HTTP contract tests start the real host without an execution-policy override and verify socket release after termination. |
-| Corporate Windows startup, browser interaction and proxy access | NOT RUN | Requires the intended corporate environment. |
+| Owner's Windows UI startup and real archive import | PASS, user-observed | Screenshot supplied on 2026-11-11 shows 170 files, 244 driver rows and four source-quality notices. Exact browser, elevation and proxy access were not established by this evidence. Screenshot and device identifiers are not committed. |
+| Corporate Windows proxy access and complete manual interaction | NOT RUN | Requires the remaining checks in the intended corporate environment. |
 | Native Windows Chromium browser with sandbox enabled | PASS | Ten recorded checks: real file input, ZIP capability, tabs/filters, native source dialog, Escape/focus return, failed-import recovery, late-response handling, synthetic Lenovo XML/readme rendering, no page errors/external requests, host cleanup. |
-| Windows screenshot inspection | PASS at 1440 px | Synthetic overview and readme screenshots preserved as CI evidence; overview visually inspected. Mobile/responsive acceptance is not claimed. |
+| Initial Windows screenshot inspection | SUPERSEDED for readability | Synthetic overview and readme screenshots were inspected at 1440 px. The owner's real-use screenshot exposed inadequate text size; larger relative typography and adjustable sizes address this in the subsequent UI revision. |
 | Linux native browser interaction | NOT RUN | Host/core tests and DOM emulation pass, but neither establishes actual Linux browser behavior. |
 
 Verified code revision: `53b56449097679db307e8445139af78d8f6c7a74`.

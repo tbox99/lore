@@ -12,27 +12,27 @@ test('ZIP reads stored and deflated entries and validates independent CRC', asyn
   }
 });
 test('invalid, traversal, duplicate, encrypted and ZIP64 archives fail clearly', async () => {
-  await assert.rejects(openZip(new Blob(['no zip'])), /vollständiges ZIP/);
-  for (const name of ['../x', '/x', 'C:/x', 'a/../x', 'a\\..\\x']) await assert.rejects(openZip(new Blob([makeZip([[name, 'x']])])), /Dateipfad/);
-  await assert.rejects(openZip(new Blob([makeZip([['a.txt', 'a'], ['A.txt', 'b']])])), /doppelte/);
+  await assert.rejects(openZip(new Blob(['no zip'])), { code: 'zip.incompleteArchive' });
+  for (const name of ['../x', '/x', 'C:/x', 'a/../x', 'a\\..\\x']) await assert.rejects(openZip(new Blob([makeZip([[name, 'x']])])), { code: 'zip.unsafePath' });
+  await assert.rejects(openZip(new Blob([makeZip([['a.txt', 'a'], ['A.txt', 'b']])])), { code: 'zip.duplicatePath' });
   const encrypted = makeZip([['a', 'x']]);
   encrypted.writeUInt16LE(2049, encrypted.indexOf(Buffer.from('PK\u0001\u0002')) + 8);
-  await assert.rejects(openZip(new Blob([encrypted])), /Verschlüsselte/);
+  await assert.rejects(openZip(new Blob([encrypted])), { code: 'zip.encrypted' });
   const zip64 = makeZip([['a', 'x']]); zip64.writeUInt16LE(65535, zip64.length - 12);
-  await assert.rejects(openZip(new Blob([zip64])), /ZIP64/);
+  await assert.rejects(openZip(new Blob([zip64])), { code: 'zip.zip64' });
 });
 test('member size, local name and checksum are checked before returning content', async () => {
   const sizeZip = await openZip(new Blob([makeZip([['a', 'hello']])]));
-  await assert.rejects(sizeZip.read('a', { maxBytes: 4 }), /Leselimit/);
+  await assert.rejects(sizeZip.read('a', { maxBytes: 4 }), { code: 'zip.readLimit' });
   const corrupt = makeZip([['a', 'hello']], { compress: false }); corrupt[31] ^= 1;
-  const corruptZip = await openZip(new Blob([corrupt])); await assert.rejects(corruptZip.read('a'), /Prüfsumme/);
+  const corruptZip = await openZip(new Blob([corrupt])); await assert.rejects(corruptZip.read('a'), { code: 'zip.checksum' });
   const badName = makeZip([['a', 'hello']]); badName[30] = 98;
-  const badZip = await openZip(new Blob([badName])); await assert.rejects(badZip.read('a'), /Dateinamen/);
+  const badZip = await openZip(new Blob([badName])); await assert.rejects(badZip.read('a'), { code: 'zip.nameMismatch' });
 });
 test('UTF-16 and UTF-8 text supported; undecodable bytes remain explicitly unresolved', () => {
   assert.equal(decodeText(new Uint8Array([255, 254, 65, 0])), 'A');
   assert.equal(decodeText(new Uint8Array([254, 255, 0, 65])), 'A');
-  assert.throws(() => decodeText(new Uint8Array([128, 129])), /Textkodierung/);
+  assert.throws(() => decodeText(new Uint8Array([128, 129])), { code: 'cdat.encoding' });
 });
 test('CDAT import distinguishes observed drivers, stored packages and failed collection', async () => {
   const snapshot = await importCdat(new File([makeZip(demoEntries())], 'demo.zip'));
@@ -43,7 +43,7 @@ test('CDAT import distinguishes observed drivers, stored packages and failed col
   assert.equal(snapshot.drivers[0].version, '24.50.0.4');
   assert.ok(!snapshot.drivers.some(row => row.version === '23.80.0.7'));
   assert.equal(snapshot.warnings.filter(row => row.kind === 'collection').length, 1);
-  assert.equal(snapshot.coverage.find(row => row.label === 'Geräteübersicht').status, 'partial');
+  assert.equal(snapshot.coverage.find(row => row.labelDescriptor.key === 'coverage.quick').status, 'partial');
   assert.ok(snapshot.sources.bios.path.endsWith('QuickData-Demo.log'));
   assert.ok(snapshot.sources.bios.line > 0);
   assert.ok(!Object.keys(snapshot.texts).some(path => path.endsWith('/Example.log')));
@@ -52,7 +52,7 @@ test('missing driver file means uncollected, not absent drivers', async () => {
   const data = demoEntries().filter(([name]) => !name.endsWith('/Drivers.log'));
   const snapshot = await importCdat(new Blob([makeZip(data)]));
   assert.equal(snapshot.drivers.length, 0);
-  assert.equal(snapshot.coverage.find(row => row.label === 'Gemeldete Gerätetreiber').status, 'missing');
+  assert.equal(snapshot.coverage.find(row => row.labelDescriptor.key === 'coverage.drivers').status, 'missing');
 });
 test('malformed manifest and conflicting identity remain visible without hiding other evidence', async () => {
   const data = demoEntries(); data[0][1] = '{invalid';
@@ -70,8 +70,8 @@ test('long driver names with one separator still parse; nameless continuations s
   assert.deepEqual(result.skipped, [4]);
 });
 test('multiple captures and unrelated archives are rejected', async () => {
-  await assert.rejects(importCdat(new Blob([makeZip([['a/FileDetails.json', '{}'], ['b/FileDetails.json', '{}']])])), /Mehrere Quellen/);
-  await assert.rejects(importCdat(new Blob([makeZip([['readme.txt', 'unrelated']])])), /Keine unterstützte CDAT/);
+  await assert.rejects(importCdat(new Blob([makeZip([['a/FileDetails.json', '{}'], ['b/FileDetails.json', '{}']])])), { code: 'cdat.multipleSources' });
+  await assert.rejects(importCdat(new Blob([makeZip([['readme.txt', 'unrelated']])])), { code: 'cdat.unsupported' });
   const mixed = demoEntries().map(([name, value]) => [name.endsWith('/Drivers.log') ? name.replace('CDAT-Demo/', 'Other-device/') : name, value]);
-  await assert.rejects(importCdat(new Blob([makeZip(mixed)])), /verschiedenen Aufnahmeordnern/);
+  await assert.rejects(importCdat(new Blob([makeZip(mixed)])), { code: 'cdat.mixedRoots' });
 });

@@ -15,12 +15,40 @@ const artifacts = path.join(prototype, 'test-results');
 await mkdir(artifacts, { recursive: true });
 const results = [];
 const consoleErrors = [], pageErrors = [], externalRequests = [];
+const pageRequests = [];
 let hostOutput = '', hostErrors = '', hostSpawnError = null;
 let browser = null, page = null, failure = null;
 
 function pass(check, detail = null) {
   results.push({ check, status: 'PASS', detail });
   console.log(`PASS: ${check}${detail ? ` — ${detail}` : ''}`);
+}
+function observePage(target) {
+  target.setDefaultTimeout(15_000);
+  target.on('pageerror', error => pageErrors.push(error.message));
+  target.on('console', message => {
+    if (message.type() === 'error' && !message.location().url.endsWith('/favicon.ico')) consoleErrors.push(message.text());
+  });
+  target.on('request', request => {
+    pageRequests.push(request.url());
+    if (/^https?:/.test(request.url()) && !request.url().startsWith(`${base}/`)) externalRequests.push(request.url());
+  });
+}
+async function preferences(target, language, fontSize) {
+  assert.equal(await target.locator('html').getAttribute('lang'), language);
+  assert.equal(await target.locator('#language-select').inputValue(), language);
+  assert.equal(await target.locator('html').getAttribute('data-font-size'), fontSize);
+  assert.equal(await target.locator('#font-size-select').inputValue(), fontSize);
+}
+async function fontPixels(selector) {
+  return page.locator(selector).first().evaluate(element => Number.parseFloat(getComputedStyle(element).fontSize));
+}
+async function noPageOverflow(label) {
+  const dimensions = await page.evaluate(() => ({
+    width: document.documentElement.clientWidth,
+    scroll: document.documentElement.scrollWidth,
+  }));
+  assert.ok(dimensions.scroll <= dimensions.width + 1, `${label}: page width ${dimensions.width}, content width ${dimensions.scroll}`);
 }
 async function availablePort() {
   const socket = createServer();
@@ -67,25 +95,31 @@ try {
 
   // No launch arguments or protection overrides: sandbox remains enabled.
   browser = await chromium.launch({ headless: true, chromiumSandbox: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  // A German browser must still get English until the user chooses otherwise.
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale: 'de-DE' });
   page = await context.newPage();
-  page.setDefaultTimeout(15_000);
-  page.on('pageerror', error => pageErrors.push(error.message));
-  page.on('console', message => {
-    if (message.type() === 'error' && !message.location().url.endsWith('/favicon.ico')) consoleErrors.push(message.text());
-  });
-  page.on('request', request => {
-    if (/^https?:/.test(request.url()) && !request.url().startsWith(`${base}/`)) externalRequests.push(request.url());
-  });
+  observePage(page);
   await page.goto(`${base}/`, { waitUntil: 'networkidle' });
   assert.equal(await page.locator('#browser-warning').isVisible(), false);
   pass('Native browser starts with ZIP capability');
+  await preferences(page, 'en', 'standard');
+  assert.equal(await fontPixels('html'), 18);
+  assert.match(await page.locator('#tab-drivers').textContent(), /Drivers/);
+  pass('English is the default in a German browser', '18 px default root font');
 
   const demoPath = path.join(prototype, 'web', 'demo-cdat.zip');
   await page.locator('#archive-input').setInputFiles(demoPath);
   await page.waitForFunction(() => document.querySelector('#driver-tab-count').textContent === '3' && document.querySelector('#file-tab-count').textContent === '7');
   assert.match(await page.locator('#capture-title').textContent(), /ThinkPad Demo/);
   assert.equal(await page.locator('#app-error').isVisible(), false);
+  const englishOverview = await page.locator('#device-grid').textContent();
+  const englishCoverage = await page.locator('#coverage-list').textContent();
+  const englishWarnings = await page.locator('#warning-list').textContent();
+  assert.match(englishWarnings, /Demo\.CollectionUnavailable/);
+  for (const selector of ['.device-item dt', '.device-item dd', '.source-button', '.coverage-detail', '.status-tag']) {
+    assert.ok(await fontPixels(selector) >= 14, `${selector} must remain readable at the default size`);
+  }
+  await noPageOverflow('Desktop overview');
   await page.screenshot({ path: path.join(artifacts, 'synthetic-overview.png'), fullPage: true });
   pass('Native file picker import', '3 drivers, 7 archive files');
 
@@ -100,11 +134,49 @@ try {
   await sourceButton.click();
   assert.equal(await page.locator('#source-dialog').evaluate(dialog => dialog.open), true);
   assert.match(await page.locator('#source-text').textContent(), /DeviceName/);
-  assert.match(await page.locator('#source-detail').textContent(), /Zeile/);
+  assert.match(await page.locator('#source-detail').textContent(), /line/i);
+  const originalSource = await page.locator('#source-text').textContent();
+  const defaultSourceFont = await fontPixels('#source-text');
+  const defaultTableFont = await fontPixels('#driver-table td');
+  assert.ok(defaultSourceFont >= 15, 'Source text must be readable at the default size');
+  assert.ok(defaultTableFont >= 16, 'Driver table must be readable at the default size');
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#source-dialog').evaluate(dialog => dialog.open), false);
   assert.equal(await sourceButton.evaluate(button => document.activeElement === button), true);
   pass('Keyboard tabs, filtering and native source dialog', 'Escape closes; focus returns to source button');
+
+  const beforePreferenceRequests = pageRequests.length;
+  await page.locator('#language-select').selectOption('de');
+  await preferences(page, 'de', 'standard');
+  assert.match(await page.locator('#tab-drivers').textContent(), /Treiber/);
+  assert.equal(await page.locator('#tab-drivers').getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#driver-search').inputValue(), 'Wi-Fi');
+  assert.equal(await page.locator('#driver-table tr').count(), 1);
+  assert.notEqual(await page.locator('#device-grid').textContent(), englishOverview);
+  assert.notEqual(await page.locator('#coverage-list').textContent(), englishCoverage);
+  assert.notEqual(await page.locator('#warning-list').textContent(), englishWarnings);
+  assert.match(await page.locator('#warning-list').textContent(), /Demo\.CollectionUnavailable/);
+  await page.locator('#font-size-select').selectOption('large');
+  assert.equal(await fontPixels('html'), 20);
+  await page.locator('#font-size-select').selectOption('extra-large');
+  await preferences(page, 'de', 'extra-large');
+  assert.equal(await fontPixels('html'), 22);
+  assert.ok(Math.abs((await fontPixels('#driver-table td')) / defaultTableFont - 22 / 18) < 0.02);
+  await sourceButton.click();
+  assert.equal(await page.locator('#source-text').textContent(), originalSource);
+  assert.match(await page.locator('#source-detail').textContent(), /Zeile/);
+  assert.ok(Math.abs((await fontPixels('#source-text')) / defaultSourceFont - 22 / 18) < 0.02);
+  await page.keyboard.press('Escape');
+  await page.locator('#tab-overview').click();
+  await noPageOverflow('Desktop German extra-large overview');
+  await page.screenshot({ path: path.join(artifacts, 'synthetic-overview-de-extra-large.png'), fullPage: true });
+  await page.locator('#language-select').selectOption('en');
+  assert.equal(await page.locator('#device-grid').textContent(), englishOverview);
+  assert.equal(await page.locator('#coverage-list').textContent(), englishCoverage);
+  assert.equal(await page.locator('#warning-list').textContent(), englishWarnings);
+  assert.equal(pageRequests.length, beforePreferenceRequests, 'Preference changes must not refetch data');
+  await page.locator('#font-size-select').selectOption('standard');
+  pass('Live language and text-size changes preserve evidence', 'Filtered rows retained; original source unchanged; tables and dialogs scale without requests');
 
   await page.locator('#tab-files').click();
   await page.locator('#file-search').fill('Drivers.log');
@@ -114,6 +186,12 @@ try {
   await page.locator('#archive-input').setInputFiles({ name: 'invalid.zip', mimeType: 'application/zip', buffer: Buffer.from('This is not a ZIP archive.') });
   await page.locator('#app-error').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#driver-tab-count').textContent(), '0');
+  const englishImportError = await page.locator('#app-error').textContent();
+  assert.match(englishImportError, /ZIP/);
+  await page.locator('#language-select').selectOption('de');
+  assert.notEqual(await page.locator('#app-error').textContent(), englishImportError);
+  await page.locator('#language-select').selectOption('en');
+  assert.equal(await page.locator('#app-error').textContent(), englishImportError);
   await page.locator('#archive-input').setInputFiles(demoPath);
   await page.waitForFunction(() => document.querySelector('#driver-tab-count').textContent === '3');
   assert.equal(await page.locator('#app-error').isVisible(), false);
@@ -132,6 +210,12 @@ try {
   });
   await page.locator('#demo-button').click();
   await demoRequested;
+  const englishBusyStatus = await page.locator('#app-status').textContent();
+  await page.locator('#language-select').selectOption('de');
+  assert.notEqual(await page.locator('#app-status').textContent(), englishBusyStatus);
+  assert.equal(await page.locator('#app-status').evaluate(element => element.classList.contains('busy')), true);
+  await page.locator('#language-select').selectOption('en');
+  assert.equal(await page.locator('#app-status').textContent(), englishBusyStatus);
   const secondEntries = demoEntries().map(([name, content]) => [name, typeof content === 'string' ? content.replace('ThinkPad Demo (synthetische Daten)', 'Second synthetic device') : content]);
   await page.locator('#archive-input').setInputFiles({ name: 'second-synthetic.zip', mimeType: 'application/zip', buffer: makeZip(secondEntries) });
   await page.waitForFunction(() => document.querySelector('#capture-title').textContent === 'Second synthetic device');
@@ -164,6 +248,26 @@ try {
   await page.locator('#package-detail').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#package-title').textContent(), 'Synthetic BIOS package');
   assert.match(await page.locator('#package-fields').textContent(), /9\.8\.7/);
+  const englishPackageFields = await page.locator('#package-fields').textContent();
+  const englishPackageNotes = await page.locator('#package-notes').textContent();
+  const englishCatalogStatus = await page.locator('#catalog-status').textContent();
+  await page.locator('#catalog-search').fill('Synthetic BIOS');
+  const beforeCatalogPreferenceRequests = pageRequests.length;
+  await page.locator('#language-select').selectOption('de');
+  assert.equal(await page.locator('#tab-lenovo').getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#catalog-search').inputValue(), 'Synthetic BIOS');
+  assert.equal(await page.locator('#catalog-table tr').count(), 1);
+  assert.equal(await page.locator('#package-title').textContent(), 'Synthetic BIOS package');
+  assert.match(await page.locator('#package-fields').textContent(), /9\.8\.7/);
+  assert.notEqual(await page.locator('#package-fields').textContent(), englishPackageFields);
+  assert.notEqual(await page.locator('#package-notes').textContent(), englishPackageNotes);
+  assert.notEqual(await page.locator('#catalog-status').textContent(), englishCatalogStatus);
+  await page.locator('#language-select').selectOption('en');
+  assert.equal(await page.locator('#package-fields').textContent(), englishPackageFields);
+  assert.equal(await page.locator('#package-notes').textContent(), englishPackageNotes);
+  assert.equal(await page.locator('#catalog-status').textContent(), englishCatalogStatus);
+  assert.equal(pageRequests.length, beforeCatalogPreferenceRequests, 'Language change must not reload catalog or package metadata');
+  pass('Loaded Lenovo metadata and status translate without another request');
   await page.locator('#package-links button').click();
   await page.waitForFunction(() => document.querySelector('#source-dialog').open && document.querySelector('#source-kind').textContent === 'LENOVO README');
   assert.match(await page.locator('#source-text').textContent(), /Install prerequisite first\./);
@@ -173,6 +277,61 @@ try {
   await page.screenshot({ path: path.join(artifacts, 'synthetic-readme.png'), fullPage: true });
   await page.keyboard.press('Escape');
   pass('Catalog, package metadata and safe readme display', 'Controlled synthetic upstream fixture');
+
+  await page.locator('#language-select').selectOption('de');
+  await page.locator('#font-size-select').selectOption('extra-large');
+  await page.setViewportSize({ width: 384, height: 900 });
+  for (const tab of ['overview', 'drivers', 'files', 'lenovo']) {
+    await page.locator(`#tab-${tab}`).click();
+    await noPageOverflow(`384 px, extra-large text, ${tab}`);
+  }
+  await page.locator('#tab-overview').click();
+  await page.screenshot({ path: path.join(artifacts, 'synthetic-mobile-de-extra-large.png'), fullPage: true });
+  await page.locator('#tab-drivers').click();
+  await page.locator('#driver-table button').first().click();
+  await noPageOverflow('384 px, extra-large source dialog');
+  assert.equal(await page.locator('#source-dialog').evaluate(dialog => dialog.open), true);
+  assert.ok(await fontPixels('#source-text') > defaultSourceFont);
+  await page.screenshot({ path: path.join(artifacts, 'synthetic-mobile-source-extra-large.png'), fullPage: true });
+  await page.keyboard.press('Escape');
+  pass('Responsive extra-large layout has no page overflow', '384 px viewport; all four tabs and source dialog; tables may scroll internally');
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await preferences(page, 'de', 'extra-large');
+  assert.equal(await page.locator('#driver-tab-count').textContent(), '0', 'Preferences persist, diagnostic data does not');
+  assert.equal(await fontPixels('html'), 22);
+  pass('Language and font preferences persist after reload', 'Diagnostic archive is not persisted');
+
+  await page.evaluate(() => localStorage.setItem('lore.preferences', JSON.stringify({ language: 'invalid', fontSize: 'invalid' })));
+  await page.reload({ waitUntil: 'networkidle' });
+  await preferences(page, 'en', 'standard');
+  await page.evaluate(() => localStorage.setItem('lore.preferences', '{invalid json'));
+  await page.reload({ waitUntil: 'networkidle' });
+  await preferences(page, 'en', 'standard');
+  await page.locator('#archive-input').setInputFiles(demoPath);
+  await page.waitForFunction(() => document.querySelector('#driver-tab-count').textContent === '3');
+  pass('Invalid stored preferences recover to usable English defaults');
+
+  // Simulate storage-denied browsers without weakening any browser protection.
+  const deniedContext = await browser.newContext({ locale: 'de-DE', viewport: { width: 1440, height: 1000 } });
+  await deniedContext.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() { throw new DOMException('Storage denied by test fixture', 'SecurityError'); },
+    });
+  });
+  const deniedPage = await deniedContext.newPage();
+  observePage(deniedPage);
+  await deniedPage.goto(`${base}/`, { waitUntil: 'networkidle' });
+  await preferences(deniedPage, 'en', 'standard');
+  await deniedPage.locator('#language-select').selectOption('de');
+  await deniedPage.locator('#font-size-select').selectOption('large');
+  await preferences(deniedPage, 'de', 'large');
+  await deniedPage.locator('#archive-input').setInputFiles(demoPath);
+  await deniedPage.waitForFunction(() => document.querySelector('#driver-tab-count').textContent === '3');
+  assert.equal(await deniedPage.locator('#app-error').isVisible(), false);
+  await deniedContext.close();
+  pass('Storage denial does not prevent import or session preference changes');
 
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(consoleErrors, []);
