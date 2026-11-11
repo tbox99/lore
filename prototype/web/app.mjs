@@ -1,4 +1,5 @@
 import { importCdat } from './core/cdat.mjs';
+import { compareSnapshots } from './core/compare.mjs';
 import { fetchCatalog, fetchPackage, fetchReadme } from './core/lenovo.mjs';
 import { formatMessage } from './core/messages.mjs';
 import { translate, translations } from './i18n.mjs';
@@ -9,7 +10,7 @@ const t = (key, params = {}) => translate(key, params, preferences.language);
 const locale = () => preferences.language === 'de' ? 'de-DE' : 'en-US';
 const uiMessages = new Map();
 let sourceView = null;
-const state = { readmeLoading: false, catalogQuery: null, snapshot: null, catalog: null, package: null, selectedPackage: null, importing: false, importSeq: 0, catalogSeq: 0, detailSeq: 0, readmeSeq: 0 };
+const state = { secondary: null, comparison: null, comparing: false, compareSeq: 0, secondaryFile: null, readmeLoading: false, catalogQuery: null, snapshot: null, catalog: null, package: null, selectedPackage: null, importing: false, importSeq: 0, catalogSeq: 0, detailSeq: 0, readmeSeq: 0 };
 let catalogController = null;
 let detailController = null;
 let readmeController = null;
@@ -62,21 +63,21 @@ function renderSource() {
   if (!sourceView) return;
   const { title, text, detail, kind } = sourceView;
   const limit = 250_000;
-  $('source-title').textContent = title;
+  $('source-title').textContent = typeof title === 'function' ? title() : title;
   $('source-kind').textContent = kind === 'readme' ? 'LENOVO README' : t('originalSource');
   $('source-detail').textContent = `${typeof detail === 'function' ? detail() : detail}${text.length > limit ? t('truncated', { count: number.format(limit) }) : ''}`;
   // Source content is retained verbatim and does not depend on the display language.
   if ($('source-text').textContent !== text.slice(0, limit)) $('source-text').textContent = text.slice(0, limit);
 }
-function showText(title, text, detail = '', kind = 'source', returnFocus = null) {
-  sourceView = { title, text: String(text || ''), detail, kind, returnFocus };
+function showText(title, text, detail = '', kind = 'source', returnFocus = null, side = null) {
+  sourceView = { title, text: String(text || ''), detail, kind, returnFocus, side };
   renderSource();
   $('source-text').scrollTop = 0;
   if (!$('source-dialog').open) $('source-dialog').showModal();
 }
-function sourceButton(path, line, label = null) {
+function sourceButton(path, line, label = null, snapshot = state.snapshot, side = null) {
   if (!path) return node('span', 'subtle', t('sourceUnknown'));
-  const hasText = Object.hasOwn(state.snapshot?.texts || {}, path);
+  const hasText = Object.hasOwn(snapshot?.texts || {}, path);
   const display = label || `${fileName(path)}${line ? ` · ${t('shortLine', { line })}` : ''}`;
   if (!hasText) {
     const value = node('span', 'subtle', display);
@@ -87,15 +88,16 @@ function sourceButton(path, line, label = null) {
   button.type = 'button';
   button.dataset.sourcePath = path;
   button.dataset.sourceLine = String(line ?? '');
+  button.dataset.sourceSide = side || '';
   button.title = `${path}${line ? `, ${t('line', { line })}` : ''}`;
   button.addEventListener('click', () => {
     const containerId = button.closest('[id]')?.id;
     const returnFocus = () => {
       const container = $(containerId) || document;
-      const current = Array.from(container.querySelectorAll('.source-button')).find(candidate => candidate.dataset.sourcePath === path && candidate.dataset.sourceLine === String(line ?? ''));
+      const current = Array.from(container.querySelectorAll('.source-button')).find(candidate => candidate.dataset.sourcePath === path && candidate.dataset.sourceLine === String(line ?? '') && candidate.dataset.sourceSide === (side || ''));
       (button.isConnected ? button : current)?.focus();
     };
-    showText(path, state.snapshot.texts[path], () => line ? t('originalAtLine', { line }) : t('originalText'), 'source', returnFocus);
+    showText(() => side ? `${t('captureSide', { side })} · ${path}` : path, snapshot.texts[path], () => line ? t('originalAtLine', { line }) : t('originalText'), 'source', returnFocus, side);
   });
   return button;
 }
@@ -205,7 +207,7 @@ function renderFiles() {
   $('files-empty').hidden = !!rows.length;
   $('files-empty').textContent = t(state.snapshot ? 'filesFiltered' : 'openFirst');
 }
-function renderSnapshot() { renderOverview(); renderDrivers(); renderFiles(); }
+function renderSnapshot() { renderOverview(); renderDrivers(); renderFiles(); renderComparison(); }
 function setImportBusy(busy) {
   state.importing = busy;
   $('workspace-card').setAttribute('aria-busy', String(busy));
@@ -213,6 +215,7 @@ function setImportBusy(busy) {
   $('catalog-button').disabled = busy;
   $('machine-type').disabled = busy;
   $('catalog-os').disabled = busy;
+  $('compare-input').disabled = busy || !state.snapshot || !zipSupported;
 }
 async function loadArchive(file, isDemo = false) {
   if (!zipSupported) return;
@@ -220,6 +223,9 @@ async function loadArchive(file, isDemo = false) {
   setImportBusy(true); resetLenovo();
   if ($('source-dialog').open) $('source-dialog').close();
   state.snapshot = null;
+  sourceView = null;
+  resetComparison();
+  $('comparison-filter').value = 'all'; $('comparison-search').value = '';
   $('driver-search').value = ''; $('file-search').value = '';
   $('machine-type').value = '';
   error('app-error');
@@ -229,6 +235,7 @@ async function loadArchive(file, isDemo = false) {
     const result = await importCdat(file);
     if (seq !== state.importSeq) return;
     state.snapshot = result;
+    status('compare-status', () => t('compareIdle'));
     const machineType = String(result.device.mtm || '').slice(0, 4).toUpperCase();
     $('machine-type').value = /^[A-Z0-9]{4}$/.test(machineType) ? machineType : '';
     if (/windows\s*10/i.test(result.device.os || '')) $('catalog-os').value = 'Win10';
@@ -241,8 +248,159 @@ async function loadArchive(file, isDemo = false) {
     error('app-error', () => t('importError', { error: messageOf(err) }));
     status('app-status', () => t('importFailed'));
   } finally {
-    if (seq === state.importSeq) { setImportBusy(false); renderOverview(); }
+    if (seq === state.importSeq) { setImportBusy(false); renderOverview(); renderComparison(); }
   }
+}
+function closeComparisonSource() {
+  if (sourceView?.side !== 'B') return;
+  sourceView = null;
+  if ($('source-dialog').open) $('source-dialog').close();
+}
+function resetComparison() {
+  state.compareSeq += 1;
+  closeComparisonSource();
+  state.secondary = null; state.comparison = null; state.comparing = false; state.secondaryFile = null;
+  error('compare-error');
+  status('compare-status', () => t(state.snapshot ? 'compareIdle' : 'compareOpenA'));
+  renderComparison();
+}
+async function loadComparison(file) {
+  if (!zipSupported || !state.snapshot || state.importing) return;
+  const primary = state.snapshot;
+  const primarySeq = state.importSeq;
+  const seq = ++state.compareSeq;
+  closeComparisonSource();
+  state.secondary = null; state.comparison = null; state.comparing = true; state.secondaryFile = file.name || t('archive');
+  error('compare-error');
+  status('compare-status', () => t('compareReading', { file: file.name || t('archive') }), true);
+  renderComparison();
+  try {
+    const secondary = await importCdat(file);
+    if (seq !== state.compareSeq || primarySeq !== state.importSeq || primary !== state.snapshot) return;
+    const comparison = compareSnapshots(primary, secondary);
+    state.secondary = secondary; state.comparison = comparison;
+    status('compare-status', () => t('compareLoaded'));
+  } catch (err) {
+    if (seq !== state.compareSeq || primarySeq !== state.importSeq) return;
+    error('compare-error', () => t('compareFailed', { error: messageOf(err) }));
+    status('compare-status', () => t('compareFailedStatus'));
+    state.secondaryFile = null;
+  } finally {
+    if (seq === state.compareSeq && primarySeq === state.importSeq) { state.comparing = false; renderComparison(); }
+  }
+}
+function renderComparisonCapture(id, snapshot, side) {
+  const card = $(id);
+  const noticesOpen = !!card.querySelector('details')?.open;
+  card.replaceChildren(node('h4', '', t('captureSide', { side })));
+  if (!snapshot) {
+    card.append(node('p', 'subtle', t(side === 'B' && state.comparing ? 'compareReadingCard' : 'compareWaiting')));
+    if (side === 'B' && state.secondaryFile) card.append(node('p', 'comparison-filename', state.secondaryFile));
+    return;
+  }
+  card.append(node('p', 'comparison-model', snapshot.device.model || snapshot.device.mtm || t('capture')),
+    node('p', 'comparison-filename', snapshot.archive.fileName || t('archive')));
+  const fields = node('dl', 'comparison-capture-fields');
+  for (const field of ['mtm', 'serial', 'capturedAt']) {
+    const item = node('div');
+    item.append(node('dt', '', t(field)), node('dd', '', snapshot.device[field] || t('notDetermined')));
+    const ref = snapshot.sources?.[field];
+    if (ref?.path) item.append(sourceButton(ref.path, ref.line, t('compareSourceSide', { side }), snapshot, side));
+    fields.append(item);
+  }
+  card.append(fields);
+  const notices = snapshot.warnings || [];
+  const details = node('details', 'comparison-notices'); details.open = noticesOpen;
+  details.append(node('summary', '', t(notices.length === 1 ? 'noticeCountOne' : 'noticeCount', { count: number.format(notices.length) })));
+  const list = node('ul', 'warning-list');
+  for (const notice of notices) {
+    const item = node('li', '', formatMessage(notice.messageDescriptor ?? notice.message, preferences.language));
+    if (notice.source) item.append(sourceButton(notice.source, notice.line, null, snapshot, side));
+    list.append(item);
+  }
+  if (!notices.length) list.append(node('li', 'neutral', t('noticesEmpty')));
+  details.append(list); card.append(details);
+}
+function comparisonRowName(row) { return row.field ? t(row.field) : row.name || t('compareDrivers'); }
+function comparisonSource(ref, snapshot, side) {
+  return sourceButton(ref.path, ref.line, `${t('compareSourceSide', { side })}${ref.line ? ` · ${t('shortLine', { line: ref.line })}` : ''}`, snapshot, side);
+}
+function comparisonCell(cell, snapshot, side, row) {
+  const td = node('td', 'comparison-value'); td.dataset.side = side.toLowerCase();
+  const coverageKey = Object.hasOwn(translations.en, `status_${cell.coverage}`) ? `status_${cell.coverage}` : 'status_unknown';
+  if (row.summary) {
+    td.append(node('span', `status-tag ${cell.coverage === 'read' ? 'good' : 'caution'}`, t(coverageKey)));
+  } else if ((cell.records?.length || 0) > 1) {
+    const records = node('ul', 'comparison-records');
+    for (const record of cell.records) {
+      const item = node('li'); item.append(node('div', '', `${record.name} · ${record.version || t('notDetermined')}`));
+      if (record.source) item.append(comparisonSource({ path: record.source, line: record.line }, snapshot, side));
+      records.append(item);
+    }
+    td.append(records);
+  } else td.append(node('div', cell.value == null ? 'unknown' : '', cell.value ?? t('notDetermined')));
+  if (!row.summary && cell.coverage !== 'read') td.append(node('p', 'comparison-coverage', `${t('source')}: ${t(coverageKey)}`));
+  if ((cell.records?.length || 0) <= 1) {
+    const refs = node('div', 'comparison-sources');
+    for (const ref of cell.sources || []) if (ref.path) refs.append(comparisonSource(ref, snapshot, side));
+    td.append(refs);
+  }
+  return td;
+}
+function renderComparisonRows(rows, target, emptyId, countId) {
+  const filter = $('comparison-filter').value;
+  const query = $('comparison-search').value.trim().toLocaleLowerCase(preferences.language);
+  const filtered = rows.filter(row => {
+    const matches = filter === 'all' || (filter === 'differences' ? ['different', 'onlyA', 'onlyB'].includes(row.status) : row.status === 'unresolved');
+    const values = `${comparisonRowName(row)} ${row.a.value || ''} ${row.b.value || ''} ${row.a.records?.map(record => record.version).join(' ') || ''} ${row.b.records?.map(record => record.version).join(' ') || ''}`;
+    return matches && values.toLocaleLowerCase(preferences.language).includes(query);
+  });
+  const fragment = document.createDocumentFragment();
+  for (const row of filtered) {
+    const tr = node('tr'); tr.dataset.status = row.status;
+    if (row.field) tr.dataset.field = row.field;
+    tr.dataset.name = row.name || '';
+    const label = node('td'); label.append(node('strong', '', comparisonRowName(row)));
+    if (row.matchBasis === 'name-only') label.append(node('p', 'comparison-match', t('compareNameOnly')));
+    if (row.matchBasis === 'ambiguous') label.append(node('p', 'comparison-match', t('compareAmbiguous')));
+    const outcome = node('td');
+    outcome.append(node('span', `status-tag ${row.status === 'same' ? 'good' : row.status === 'unresolved' ? 'caution' : 'difference'}`, t(`compareStatus_${row.status}`)));
+    const reason = `compareReason_${row.reason}`;
+    outcome.append(node('p', 'comparison-reason', t(Object.hasOwn(translations.en, reason) ? reason : 'compareReason_unknown')));
+    tr.append(label, comparisonCell(row.a, state.snapshot, 'A', row), comparisonCell(row.b, state.secondary, 'B', row), outcome);
+    fragment.append(tr);
+  }
+  $(target).replaceChildren(fragment);
+  $(emptyId).hidden = !!filtered.length;
+  $(emptyId).textContent = t(!rows.length && target === 'driver-comparison' ? 'compareEmptyDrivers' : 'compareNoRows');
+  $(countId).textContent = t('entryCount', { shown: number.format(filtered.length), total: number.format(rows.length) });
+}
+function renderComparison() {
+  $('compare-input').disabled = !zipSupported || state.importing || !state.snapshot;
+  $('compare-remove').disabled = !state.secondary && !state.comparing;
+  $('panel-comparison').setAttribute('aria-busy', String(state.comparing));
+  renderComparisonCapture('comparison-capture-a', state.snapshot, 'A');
+  renderComparisonCapture('comparison-capture-b', state.secondary, 'B');
+  const result = state.comparison;
+  $('comparison-results').hidden = !result;
+  if (!result) {
+    $('platform-comparison').replaceChildren(); $('driver-comparison').replaceChildren(); $('comparison-summary').replaceChildren();
+    $('comparison-identity').textContent = ''; $('comparison-identity').removeAttribute('data-identity');
+    $('comparison-unresolved').hidden = true;
+    return;
+  }
+  $('comparison-identity').textContent = t(`compareIdentity_${result.identity}`);
+  $('comparison-identity').dataset.identity = result.identity;
+  $('comparison-summary').replaceChildren();
+  for (const key of ['same', 'different', 'onlyA', 'onlyB', 'unresolved']) {
+    const item = node('div');
+    const value = node('dd', '', number.format(result.counts[key])); value.id = `comparison-count-${key}`;
+    item.append(node('dt', '', t(`compareCount_${key}`)), value); $('comparison-summary').append(item);
+  }
+  $('comparison-unresolved').hidden = !result.counts.unresolved;
+  $('comparison-unresolved').textContent = t('compareUnresolvedNotice', { count: number.format(result.counts.unresolved) });
+  renderComparisonRows(result.platformRows, 'platform-comparison', 'platform-comparison-empty', 'comparison-platform-count');
+  renderComparisonRows(result.driverRows, 'driver-comparison', 'driver-comparison-empty', 'comparison-driver-count');
 }
 function packageName(pkg) { try { return new URL(pkg.url).pathname.split('/').pop() || pkg.path; } catch { return pkg.path || pkg.url || t('package'); } }
 function renderCatalog() {
@@ -397,6 +555,10 @@ document.querySelectorAll('[data-tab]').forEach((tab, index, tabs) => {
     if (target !== undefined) { event.preventDefault(); activateTab(tabs[target].dataset.tab, true); }
   });
 });
+$('compare-input').addEventListener('change', (event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) loadComparison(file); });
+$('compare-remove').addEventListener('click', resetComparison);
+$('comparison-filter').addEventListener('change', renderComparison);
+$('comparison-search').addEventListener('input', renderComparison);
 $('driver-search').addEventListener('input', renderDrivers);
 $('file-search').addEventListener('input', renderFiles);
 $('catalog-search').addEventListener('input', renderCatalog);
@@ -418,6 +580,7 @@ $('font-size-select').addEventListener('change', () => {
 });
 status('app-status', () => t('readyPrompt'));
 status('catalog-status', () => t('catalogIdle'));
+status('compare-status', () => t('compareOpenA'));
 applyPreferences();
 
 function readPreferences() {

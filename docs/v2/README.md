@@ -1,7 +1,9 @@
 # LORE 2.0 development
 
-Status: M0 prototype implemented under `prototype/`; platform acceptance is
-partial. See [start instructions](RUNNING-PROTOTYPE.md) and
+Status: functional prototype under `prototype/`, with initial M1 inventory and
+M2 evidence comparison; broader milestone/platform acceptance remains partial.
+See [start instructions](RUNNING-PROTOTYPE.md),
+[comparison scope](COMPARISON-PROTOTYPE.md) and
 [validation evidence](PLATFORM-SPIKE.md).
 
 LORE 2.0 will turn Windows diagnostic collections into a readable, comparable
@@ -18,9 +20,12 @@ it does not determine the v2 language, runtime, UI framework or packaging.
 - New application work is isolated under `prototype/` during M0.
 - Existing root source files and npm/Tauri commands still belong to 1.x.
 - M0 uses shared browser JavaScript with small OS-specific transport hosts.
-  Confirm the distribution approach on corporate Windows before expanding it.
+  The owner has accepted continued functional prototyping after a successful
+  Windows startup/import. Corporate proxy access still needs its manual check.
+- Presentation remains provisional. Build and validate the analysis functions
+  independently of a later UI redesign; English is the default UI language.
 
-## User workflow
+## Target user workflow
 
 1. Open a CDAT ZIP or an already extracted collection.
 2. See device identity, collection period, data coverage and relevant findings.
@@ -84,7 +89,9 @@ download file's version describes every component in a package.
 
 ## Next work
 
-Complete the corporate Windows/manual browser checks in
-[the platform experiment](PLATFORM-SPIKE.md), then extend the importer and
-comparison using the [data requirements](DATA-CONTRACT.md). The browser core is
-implemented; packaging and corporate compatibility remain experimental.
+Exercise the initial two-capture comparison with representative collections.
+Extend hardware/driver identity and source coverage using the
+[data requirements](DATA-CONTRACT.md) before treating a name-aligned driver row
+as an established hardware match. Continue the remaining platform/network checks
+in [the platform experiment](PLATFORM-SPIKE.md). Packaging, corporate compatibility
+and final presentation remain experimental.

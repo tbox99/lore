@@ -89,6 +89,38 @@ const syntheticCatalog = `<?xml version="1.0"?><packages count="1"><package><loc
 const syntheticPackage = `<?xml version="1.0"?><Package id="lore-smoke" name="Synthetic BIOS" version="9.8.7"><Title default="EN"><Desc id="EN">Synthetic BIOS package</Desc></Title><ReleaseDate>2026-01-01</ReleaseDate><Summary default="EN"><Desc id="EN">Synthetic browser acceptance metadata.</Desc></Summary><Files><Readme default="EN"><File id="EN"><Name>lore_smoke.html</Name></File></Readme></Files></Package>`;
 const syntheticReadme = '<!doctype html><html><body><h1>Synthetic readme</h1><p>Install prerequisite first.</p><script>window.__smokePayload = true;</script><iframe src="https://example.invalid/never-load"></iframe></body></html>';
 
+// Change both BIOS sources together unless a conflict is the subject of a test.
+// The archive-relative paths deliberately remain identical across A and B.
+function comparisonFixture({ bios, wifi, serial, optional = false, missingDrivers = false, failedDrivers = false, partialDrivers = false, duplicate = false, date } = {}) {
+  return makeZip(demoEntries().filter(([name]) => !(missingDrivers && name.endsWith('/Installed-HWD/Drivers.log'))).map(([name, original]) => {
+    const utf16 = Buffer.isBuffer(original) && original[0] === 255 && original[1] === 254;
+    let content = utf16 ? original.subarray(2).toString('utf16le') : String(original);
+    if (bios) content = content.replaceAll('DEMOET10W (1.10)', bios);
+    if (serial) content = content.replaceAll('DEMO0001', serial);
+    if (date) content = content.replace('11.11.2026 10:00:00', date);
+    if (name.endsWith('/Installed-HWD/Drivers.log')) {
+      if (wifi) content = content.replace('24.50.0.4', wifi);
+      if (optional) content += 'Demo USB Adapter                                        3.2.1\r\n';
+      if (partialDrivers) content = content.replace(/^Demo Bluetooth Adapter[^\r\n]*\r?\n/m, '') + 'Unreadable table continuation\r\n';
+      if (duplicate) content += 'Demo Wi-Fi Adapter                                      24.60.1.2\r\n';
+      if (failedDrivers) content = '';
+    }
+    return [name, utf16 ? Buffer.concat([Buffer.from([255, 254]), Buffer.from(content, 'utf16le')]) : content];
+  }));
+}
+async function loadComparison(buffer, name) {
+  await page.locator('#compare-input').setInputFiles({ name, mimeType: 'application/zip', buffer });
+  await page.locator('#comparison-results').waitFor({ state: 'visible' });
+  await page.waitForFunction(expected => document.querySelector('#comparison-capture-b').textContent.includes(expected)
+    && !document.querySelector('#compare-status').classList.contains('busy'), name);
+  assert.equal(await page.locator('#compare-error').isVisible(), false);
+}
+async function comparisonCounts(expected) {
+  for (const [status, value] of Object.entries(expected)) {
+    assert.equal((await page.locator(`#comparison-count-${status}`).textContent()).trim(), String(value), `Comparison count: ${status}`);
+  }
+}
+
 try {
   const hostHealth = await waitForHost();
   pass('Actual platform host starts', JSON.stringify(hostHealth));
@@ -286,13 +318,155 @@ try {
   await page.keyboard.press('Escape');
   pass('Catalog, package metadata and safe readme display', 'Controlled synthetic upstream fixture');
 
+  await page.locator('#archive-input').setInputFiles(demoPath);
+  await page.waitForFunction(() => document.querySelector('#capture-title').textContent.includes('ThinkPad Demo'));
+  assert.equal(await page.locator('[data-tab]').count(), 5);
+  await page.locator('#tab-overview').focus();
+  await page.keyboard.press('End');
+  assert.equal(await page.locator('[data-tab]').last().getAttribute('aria-selected'), 'true');
+  await page.keyboard.press('Home');
+  assert.equal(await page.locator('#tab-overview').getAttribute('aria-selected'), 'true');
+  await page.locator('#tab-comparison').click();
+  await loadComparison(comparisonFixture({ date: '12.11.2026 11:30:00' }), 'same-values-later-capture.zip');
+  await comparisonCounts({ same: 8, different: 0, onlyA: 0, onlyB: 0, unresolved: 0 });
+  assert.equal(await page.locator('#comparison-identity').getAttribute('data-identity'), 'same-device');
+  await page.locator('#comparison-filter').selectOption('differences');
+  assert.equal(await page.locator('#platform-comparison tr, #driver-comparison tr').count(), 0);
+  pass('Identical observed values have no semantic differences', 'Capture timestamp is metadata; keyboard navigation includes all five tabs');
+
+  const changedComparison = comparisonFixture({ bios: 'DEMOET11W (1.11)', wifi: '24.60.1.2', optional: true });
+  await loadComparison(changedComparison, 'changed-capture-b.zip');
+  await page.locator('#comparison-filter').selectOption('all');
+  await comparisonCounts({ same: 6, different: 2, onlyA: 0, onlyB: 1, unresolved: 0 });
+  const biosComparison = page.locator('#platform-comparison tr[data-field="bios"]');
+  const wifiComparison = page.locator('#driver-comparison tr[data-name="Demo Wi-Fi Adapter"]');
+  assert.equal(await biosComparison.getAttribute('data-status'), 'different');
+  assert.equal(await wifiComparison.getAttribute('data-status'), 'different');
+  assert.equal(await page.locator('#driver-comparison tr[data-name="Demo USB Adapter"]').getAttribute('data-status'), 'onlyB');
+  assert.match(await biosComparison.locator('[data-side="a"]').textContent(), /DEMOET10W \(1\.10\)/);
+  assert.match(await biosComparison.locator('[data-side="b"]').textContent(), /DEMOET11W \(1\.11\)/);
+  assert.match(await wifiComparison.locator('[data-side="a"]').textContent(), /24\.50\.0\.4/);
+  assert.match(await wifiComparison.locator('[data-side="b"]').textContent(), /24\.60\.1\.2/);
+  await wifiComparison.locator('[data-side="b"] button').first().click();
+  assert.match(await page.locator('#source-text').textContent(), /24\.60\.1\.2/);
+  assert.doesNotMatch(await page.locator('#source-text').textContent(), /24\.50\.0\.4/);
+  await page.keyboard.press('Escape');
+  await wifiComparison.locator('[data-side="a"] button').first().click();
+  assert.match(await page.locator('#source-text').textContent(), /24\.50\.0\.4/);
+  assert.doesNotMatch(await page.locator('#source-text').textContent(), /24\.60\.1\.2/);
+  await page.keyboard.press('Escape');
+  assert.match(await page.locator('#driver-table').textContent(), /24\.50\.0\.4/);
+  assert.doesNotMatch(await page.locator('#driver-table').textContent(), /24\.60\.1\.2/);
+  pass('BIOS, reported driver differences and one-sided records retain correct evidence', 'A and B use identical source paths but open their own original text');
+
+  await page.locator('#comparison-filter').selectOption('differences');
+  assert.equal(await page.locator('#platform-comparison tr').count(), 1);
+  assert.equal(await page.locator('#driver-comparison tr').count(), 2);
+  await page.locator('#comparison-search').fill('Wi-Fi');
+  assert.equal(await page.locator('#platform-comparison tr').count(), 0);
+  assert.equal(await page.locator('#driver-comparison tr').count(), 1);
+  const englishComparisonSummary = await page.locator('#comparison-summary').textContent();
+  const beforeComparePreferences = pageRequests.length;
+  await page.locator('#language-select').selectOption('de');
+  await page.locator('#font-size-select').selectOption('extra-large');
+  assert.equal(await page.locator('#tab-comparison').getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#comparison-filter').inputValue(), 'differences');
+  assert.equal(await page.locator('#comparison-search').inputValue(), 'Wi-Fi');
+  assert.equal(await page.locator('#driver-comparison tr').count(), 1);
+  assert.match(await page.locator('#comparison-capture-b').textContent(), /changed-capture-b\.zip/);
+  assert.notEqual(await page.locator('#comparison-summary').textContent(), englishComparisonSummary);
+  await page.locator('#language-select').selectOption('en');
+  await page.locator('#font-size-select').selectOption('standard');
+  assert.equal(await page.locator('#comparison-summary').textContent(), englishComparisonSummary);
+  assert.equal(pageRequests.length, beforeComparePreferences);
+  await page.locator('#comparison-search').fill('');
+  await page.locator('#comparison-filter').selectOption('all');
+  await noPageOverflow('Desktop comparison');
+  await page.screenshot({ path: path.join(artifacts, 'synthetic-comparison.png'), fullPage: true });
+  pass('Comparison filters and display preferences retain both captures', 'No additional network requests; differences and unresolved results are separate');
+
+  await loadComparison(comparisonFixture({ serial: 'DEMO0002' }), 'different-device-b.zip');
+  assert.equal(await page.locator('#comparison-identity').getAttribute('data-identity'), 'different-devices');
+  await comparisonCounts({ same: 8, different: 0, onlyA: 0, onlyB: 0, unresolved: 0 });
+  await page.locator('#compare-input').setInputFiles({ name: 'invalid-b.zip', mimeType: 'application/zip', buffer: Buffer.from('Invalid secondary archive') });
+  await page.locator('#compare-error').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#comparison-results').isVisible(), false);
+  assert.equal(await page.locator('#driver-tab-count').textContent(), '3');
+  assert.match(await page.locator('#capture-title').textContent(), /ThinkPad Demo/);
+  await loadComparison(comparisonFixture(), 'recovered-capture-b.zip');
+  assert.equal(await page.locator('#comparison-identity').getAttribute('data-identity'), 'same-device');
+  pass('Device relationship and failed secondary import remain explicit', 'Invalid B clears stale comparison, preserves A and permits another import');
+
+  await loadComparison(comparisonFixture({ missingDrivers: true }), 'missing-drivers-b.zip');
+  await comparisonCounts({ same: 5, different: 0, onlyA: 0, onlyB: 0, unresolved: 4 });
+  await page.locator('#comparison-filter').selectOption('differences');
+  assert.equal(await page.locator('#platform-comparison tr, #driver-comparison tr').count(), 0);
+  assert.equal(await page.locator('#comparison-count-unresolved').isVisible(), true);
+  await page.locator('#comparison-filter').selectOption('unresolved');
+  assert.equal(await page.locator('#driver-comparison tr').count(), 4);
+  assert.equal(await page.locator('#driver-comparison tr:not([data-status="unresolved"])').count(), 0);
+  await loadComparison(comparisonFixture({ failedDrivers: true }), 'failed-driver-source-b.zip');
+  await comparisonCounts({ same: 5, different: 0, onlyA: 0, onlyB: 0, unresolved: 4 });
+  await loadComparison(comparisonFixture({ partialDrivers: true }), 'partial-drivers-b.zip');
+  await page.locator('#comparison-filter').selectOption('all');
+  await comparisonCounts({ same: 7, different: 0, onlyA: 0, onlyB: 0, unresolved: 2 });
+  assert.equal(await page.locator('#driver-comparison tr[data-name="Demo Bluetooth Adapter"]').getAttribute('data-status'), 'unresolved');
+  await loadComparison(comparisonFixture({ duplicate: true }), 'duplicate-driver-names-b.zip');
+  assert.equal(await wifiComparison.getAttribute('data-status'), 'unresolved');
+  assert.match(await wifiComparison.locator('[data-side="b"]').textContent(), /24\.50\.0\.4/);
+  assert.match(await wifiComparison.locator('[data-side="b"]').textContent(), /24\.60\.1\.2/);
+  assert.equal(await wifiComparison.locator('[data-side="b"] button').count(), 2);
+  pass('Missing, failed, partial and ambiguous driver evidence is not reported as removal', 'Unresolved rows remain accessible separately from known differences');
+
+  // Hold the first browser ZIP read for B, then replace A. The old B task must
+  // not attach itself to the new primary capture when its file read completes.
+  await page.evaluate(() => {
+    const original = Blob.prototype.arrayBuffer;
+    let holdNext = true;
+    window.__comparisonReadStarted = false;
+    window.__comparisonReadFinished = false;
+    Blob.prototype.arrayBuffer = async function (...arguments_) {
+      if (!holdNext) return original.apply(this, arguments_);
+      holdNext = false;
+      window.__comparisonReadStarted = true;
+      await new Promise(resolve => { window.__releaseComparisonRead = resolve; });
+      const value = await original.apply(this, arguments_);
+      window.__comparisonReadFinished = true;
+      return value;
+    };
+    window.__restoreComparisonRead = () => { Blob.prototype.arrayBuffer = original; };
+  });
+  await page.locator('#compare-input').setInputFiles({ name: 'held-old-capture-b.zip', mimeType: 'application/zip', buffer: changedComparison });
+  await page.waitForFunction(() => window.__comparisonReadStarted);
+  await page.locator('#archive-input').setInputFiles(demoPath);
+  await page.waitForFunction(() => document.querySelector('#driver-tab-count').textContent === '3'
+    && !document.querySelector('#app-status').classList.contains('busy'));
+  await page.evaluate(() => window.__releaseComparisonRead());
+  await page.waitForFunction(() => window.__comparisonReadFinished);
+  // Let the resumed ZIP parsing and subsequent importer promise settle.
+  await page.waitForTimeout(250);
+  await page.evaluate(() => window.__restoreComparisonRead());
+  assert.equal(await page.locator('#comparison-results').isVisible(), false);
+  assert.doesNotMatch(await page.locator('#comparison-capture-b').textContent(), /held-old-capture-b/);
+  assert.equal(await page.locator('#compare-error').evaluate(element => element.hidden), true);
+  await page.locator('#tab-comparison').click();
+  await loadComparison(changedComparison, 'removable-capture-b.zip');
+  await page.locator('#compare-remove').click();
+  assert.equal(await page.locator('#comparison-results').isVisible(), false);
+  assert.equal(await page.locator('#driver-tab-count').textContent(), '3');
+  await loadComparison(changedComparison, 'mobile-capture-b.zip');
+  await page.locator('#comparison-filter').selectOption('all');
+  pass('Replacing A invalidates an in-flight B import and B can be removed', 'Late secondary completion never changes the new primary/comparison state');
+
   await page.locator('#language-select').selectOption('de');
   await page.locator('#font-size-select').selectOption('extra-large');
   await page.setViewportSize({ width: 384, height: 900 });
-  for (const tab of ['overview', 'drivers', 'files', 'lenovo']) {
+  for (const tab of ['overview', 'drivers', 'files', 'lenovo', 'comparison']) {
     await page.locator(`#tab-${tab}`).click();
     await noPageOverflow(`384 px, extra-large text, ${tab}`);
   }
+  await page.locator('#tab-comparison').click();
+  await page.screenshot({ path: path.join(artifacts, 'synthetic-comparison-mobile-de-extra-large.png'), fullPage: true });
   await page.locator('#tab-overview').click();
   await page.screenshot({ path: path.join(artifacts, 'synthetic-mobile-de-extra-large.png'), fullPage: true });
   await page.locator('#tab-drivers').click();
@@ -302,7 +476,7 @@ try {
   assert.ok(await fontPixels('#source-text') > defaultSourceFont);
   await page.screenshot({ path: path.join(artifacts, 'synthetic-mobile-source-extra-large.png'), fullPage: true });
   await page.keyboard.press('Escape');
-  pass('Responsive extra-large layout has no page overflow', '384 px viewport; all four tabs and source dialog; tables may scroll internally');
+  pass('Responsive extra-large layout has no page overflow', '384 px viewport; all five tabs and source dialog; tables may scroll internally');
 
   await page.reload({ waitUntil: 'networkidle' });
   await preferences(page, 'de', 'extra-large');

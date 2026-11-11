@@ -22,7 +22,7 @@
 
   <main id="workspace">
     <section class="intro" aria-labelledby="page-title">
-      <div><p class="eyebrow"><span data-i18n="eyebrow">LENOVO DEVICE ANALYSIS</span></p><h1 id="page-title"><span data-i18n="heading">From data to insight.</span></h1><p class="intro-copy"><span data-i18n="intro">Open a CDAT capture, inspect device information and research Lenovo packages.</span></p></div>
+      <div><p class="eyebrow"><span data-i18n="eyebrow">LENOVO DEVICE ANALYSIS</span></p><h1 id="page-title"><span data-i18n="heading">From data to insight.</span></h1><p class="intro-copy"><span data-i18n="intro">Open CDAT captures, compare reported values and research Lenovo packages.</span></p></div>
       <p class="milestone"><span class="milestone-stage">M0</span><span data-i18n="milestone">Import &amp; connectivity check</span></p>
     </section>
 
@@ -41,6 +41,7 @@
         <button class="tab" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="panel-overview" tabindex="0" data-tab="overview"><span data-i18n="overview">Overview</span></button>
         <button class="tab" id="tab-drivers" type="button" role="tab" aria-selected="false" aria-controls="panel-drivers" tabindex="-1" data-tab="drivers"><span data-i18n="drivers">Drivers</span><span class="tab-count" id="driver-tab-count">0</span></button>
         <button class="tab" id="tab-files" type="button" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-tab="files"><span data-i18n="files">Files</span><span class="tab-count" id="file-tab-count">0</span></button>
+        <button class="tab" id="tab-comparison" type="button" role="tab" aria-selected="false" aria-controls="panel-comparison" tabindex="-1" data-tab="comparison"><span data-i18n="comparison">Comparison</span></button>
         <button class="tab" id="tab-lenovo" type="button" role="tab" aria-selected="false" aria-controls="panel-lenovo" tabindex="-1" data-tab="lenovo"><span data-i18n="catalog">Lenovo catalog</span></button>
       </div>
 
@@ -69,6 +70,36 @@
         <label class="search-field"><span class="visually-hidden"><span data-i18n="filterFiles">Filter archive files by path</span></span><span aria-hidden="true">⌕</span><input id="file-search" type="search" placeholder="Search filename or directory …" data-i18n-placeholder="filePlaceholder" autocomplete="off"></label>
         <div class="table-wrap" tabindex="0" aria-label="File table" data-i18n-aria-label="fileTable"><table><thead><tr><th scope="col"><span data-i18n="archiveFile">File in archive</span></th><th scope="col" class="numeric"><span data-i18n="expandedSize">Expanded size</span></th><th scope="col"><span data-i18n="processing">Processing</span></th></tr></thead><tbody id="file-table"></tbody></table></div>
         <p class="table-empty" id="files-empty"><span data-i18n="openFirst">Open a CDAT capture first.</span></p>
+      </section>
+
+      <section class="tab-panel" id="panel-comparison" role="tabpanel" aria-labelledby="tab-comparison" tabindex="0" hidden>
+        <div class="section-heading"><div><h3 data-i18n="compareHeading">Compare two captures</h3><p data-i18n="compareDescription">Compare the current capture A with a second ZIP as B. Opening another main capture resets B.</p></div></div>
+        <div class="comparison-actions">
+          <label class="button primary file-button" for="compare-input"><span data-i18n="chooseComparison">Choose capture B</span><input id="compare-input" type="file" accept=".zip,application/zip" disabled></label>
+          <button id="compare-remove" class="button secondary" type="button" disabled data-i18n="removeComparison">Remove B</button>
+        </div>
+        <p class="status-message" id="compare-status" role="status" aria-live="polite"></p>
+        <div class="alert error" id="compare-error" role="alert" hidden></div>
+        <div class="comparison-captures"><section id="comparison-capture-a" class="comparison-capture" aria-label="Capture A" data-i18n-aria-label="captureA"></section><section id="comparison-capture-b" class="comparison-capture" aria-label="Capture B" data-i18n-aria-label="captureB"></section></div>
+        <div id="comparison-results" hidden>
+          <p id="comparison-identity" class="comparison-identity"></p>
+          <p class="footnote" data-i18n="compareChronology">A and B are selection labels, not before/after. Capture times retain their source format; no chronology or newer version is inferred.</p>
+          <dl id="comparison-summary" class="comparison-summary"></dl>
+          <p id="comparison-unresolved" class="alert warning" role="status" hidden></p>
+          <div class="comparison-filters">
+            <label class="comparison-filter"><span data-i18n="compareShow">Show</span><select id="comparison-filter"><option value="all" data-i18n="compareAll">All results</option><option value="differences" data-i18n="compareDifferences">Differences</option><option value="unresolved" data-i18n="compareUnresolved">Not assessable</option></select></label>
+            <label class="search-field"><span class="visually-hidden" data-i18n="compareSearchLabel">Filter comparisons by field, device name or version</span><span aria-hidden="true">⌕</span><input id="comparison-search" type="search" autocomplete="off" placeholder="Search field, device name or version …" data-i18n-placeholder="compareSearchPlaceholder"></label>
+          </div>
+          <section class="comparison-section"><div class="section-heading"><h3 data-i18n="comparePlatform">BIOS, firmware &amp; Windows</h3><span id="comparison-platform-count" class="result-count"></span></div>
+            <div class="table-wrap" tabindex="0" aria-label="Platform comparison" data-i18n-aria-label="comparePlatformTable"><table class="comparison-table"><thead><tr><th scope="col" data-i18n="compareField">Field</th><th scope="col" data-i18n="captureA">Capture A</th><th scope="col" data-i18n="captureB">Capture B</th><th scope="col" data-i18n="compareResult">Result</th></tr></thead><tbody id="platform-comparison"></tbody></table></div>
+            <p class="table-empty" id="platform-comparison-empty" hidden></p>
+          </section>
+          <section class="comparison-section"><div class="section-heading"><h3 data-i18n="compareDrivers">Reported driver records</h3><span id="comparison-driver-count" class="result-count"></span></div>
+            <p class="alert info" data-i18n="compareDriverCaution">Drivers are aligned by reported name only. Hardware identity and active-driver assignment are not verified. A record listed on one side does not prove added or removed hardware.</p>
+            <div class="table-wrap" tabindex="0" aria-label="Driver record comparison" data-i18n-aria-label="compareDriverTable"><table class="comparison-table"><thead><tr><th scope="col" data-i18n="component">Device / component</th><th scope="col" data-i18n="captureA">Capture A</th><th scope="col" data-i18n="captureB">Capture B</th><th scope="col" data-i18n="compareResult">Result</th></tr></thead><tbody id="driver-comparison"></tbody></table></div>
+            <p class="table-empty" id="driver-comparison-empty" hidden></p>
+          </section>
+        </div>
       </section>
 
       <section class="tab-panel" id="panel-lenovo" role="tabpanel" aria-labelledby="tab-lenovo" tabindex="0" hidden>

@@ -62,15 +62,17 @@ ZIP64, invalid checksums and over-limit content have explicit failure paths.
 
 Text encodings supported initially: UTF-8 and BOM-marked UTF-16. Unsupported
 encodings and wrapped/unreadable rows stay visible as incomplete parsing.
-No snapshot comparison, active-device reconciliation, automatic package
-applicability analysis or report export is claimed yet.
+An initial [two-capture evidence comparison](COMPARISON-PROTOTYPE.md) now extends
+this importer. Active-device reconciliation, automatic package applicability
+analysis and report export remain future scope.
 
 ## Remaining decision
 
 Complete [the manual run](RUNNING-PROTOTYPE.md) on corporate Windows and a normal
 Linux browser. Record the accepted launch method, browser, proxy behavior,
-ordinary user permissions and any blockers. Then decide whether to keep these
-thin hosts or change distribution before building M1/M2.
+ordinary user permissions and any blockers. Functional M1/M2 prototyping proceeds
+with the owner's approval while these checks remain open. The final distribution
+and UI design are still undecided.
 
 ## Reproducibility
 

@@ -221,6 +221,36 @@ dialog::backdrop { background: #18243677; backdrop-filter: blur(2px); }
 #source-detail { margin-bottom: .85rem; overflow-wrap: anywhere; }
 #source-text { max-width: 100%; max-height: 62vh; margin: 0; padding: 1rem; border: 1px solid var(--line); border-radius: .4rem; background: #f7f9fc; font: .875rem/1.65 "Cascadia Code", Consolas, monospace; overflow: auto; white-space: pre; }
 
+/* Provisional comparison view: keep evidence and source access readable. */
+.comparison-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.comparison-captures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 1rem 0; }
+.comparison-capture { min-width: 0; padding: 1rem; border: 1px solid var(--line); border-radius: .45rem; }
+.comparison-capture h4 { margin: 0 0 .5rem; font-size: 1.05rem; }
+.comparison-model { margin-bottom: .4rem; font-weight: 600; overflow-wrap: anywhere; }
+.comparison-filename { margin-bottom: .8rem; color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.comparison-capture-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 0 0 .75rem; }
+.comparison-capture-fields dt { margin-bottom: .25rem; color: var(--muted); font-size: .85rem; }
+.comparison-capture-fields dd { margin: 0 0 .25rem; font-size: .9rem; overflow-wrap: anywhere; }
+.comparison-notices summary { cursor: pointer; color: var(--muted); font-size: .875rem; }
+.comparison-notices[open] summary { margin-bottom: .65rem; }
+.comparison-identity { margin: 1rem 0 .3rem; font-weight: 600; overflow-wrap: anywhere; }
+.comparison-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); gap: .65rem; margin: 1rem 0; }
+.comparison-summary > div { padding: .75rem; border: 1px solid var(--line); border-radius: .4rem; }
+.comparison-summary dt { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.comparison-summary dd { margin: .25rem 0 0; font-size: 1.35rem; font-weight: 600; }
+.comparison-filters { display: flex; flex-wrap: wrap; gap: .85rem; align-items: flex-end; margin: 1rem 0 1.5rem; }
+.comparison-filter { display: flex; flex-direction: column; gap: .3rem; min-width: 0; font-size: .9rem; color: var(--muted); }
+.comparison-filter select { max-width: 100%; min-height: 2.6rem; padding: .5rem .7rem; border: 1px solid #b5c1d0; border-radius: .35rem; background: white; color: var(--ink); font-size: .95rem; }
+.comparison-filters .search-field { flex: 1 1 18rem; margin-bottom: 0; }
+.comparison-section { margin-top: 1.5rem; }
+.comparison-table { min-width: 54rem; table-layout: fixed; }
+.comparison-match, .comparison-reason, .comparison-coverage { margin: .4rem 0 0; color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.comparison-value .unknown { color: var(--muted); }
+.comparison-sources { display: flex; flex-direction: column; align-items: flex-start; gap: .25rem; margin-top: .4rem; }
+.comparison-records { margin: 0; padding-left: 1rem; }
+.comparison-records li + li { margin-top: .8rem; }
+.status-tag.difference { background: var(--blue-light); color: var(--blue); }
+
 @media (max-width: 72rem) {
   .topbar { gap: .8rem 1.25rem; }
   .header-note { margin-left: auto; }
@@ -230,6 +260,8 @@ dialog::backdrop { background: #18243677; backdrop-filter: blur(2px); }
 }
 
 @media (max-width: 45rem) {
+  .comparison-captures, .comparison-capture-fields { grid-template-columns: minmax(0, 1fr); }
+  .comparison-filter { width: 100%; }
   .topbar { padding: .85rem 1rem; }
   .header-note { flex-basis: 100%; margin-left: 0; }
   .preview-badge { margin-left: auto; }

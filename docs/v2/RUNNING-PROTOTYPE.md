@@ -1,10 +1,11 @@
 # Running the LORE 2.0 M0 prototype
 
-This is a technical prototype. It can read one Windows CDAT ZIP locally, display
-device/BIOS/driver evidence and retrieve Lenovo catalog/package/readme data.
+This is a functional prototype. It can read Windows CDAT ZIPs locally, display
+device/BIOS/driver evidence, compare two captures and retrieve Lenovo
+catalog/package/readme data. Presentation remains provisional.
 The Windows and real-browser acceptance status is documented in
-[PLATFORM-SPIKE.md](PLATFORM-SPIKE.md). It does not yet compare captures or decide
-which installed components need updating.
+[PLATFORM-SPIKE.md](PLATFORM-SPIKE.md). It does not yet decide which installed
+components need updating.
 
 ## Windows: no additional application runtime
 
@@ -51,6 +52,21 @@ CDAT data stays in the browser. Only the selected machine type/OS and subsequent
 Lenovo document paths are requested from Lenovo. No serial number or diagnostic
 archive is sent by this prototype. File input is read-only.
 
+## Compare two captures
+
+1. Open the first ZIP using **Choose ZIP**. This is capture A and remains the
+   source for Overview, Drivers, Files and the Lenovo lookup.
+2. Open **Comparison** and select a second ZIP as capture B.
+3. Review BIOS, EC, ME firmware, Windows and driver records side by side.
+   Use the result filter to inspect differences or unresolved rows, and search
+   for a component. Source links open the corresponding A or B original text.
+4. Select the same ZIP on both sides as a quick check: it must show no observed
+   differences. Existing collection/matching uncertainty can still be unresolved.
+
+Replacing A clears B. Replacing or removing B keeps A. Reloading the page clears
+both captures; language/text-size preferences remain. All comparison data stays
+in the browser. See [comparison scope and limitations](COMPARISON-PROTOTYPE.md).
+
 ## Language and text size
 
 The interface starts in English, independent of the browser language. Use the
@@ -71,7 +87,8 @@ languages can be added through the message dictionaries.
 
 ## Current limits
 
-- One ZIP only; no extracted-directory or supplementary-collector import yet.
+- Up to two ZIP captures; no extracted-directory or supplementary-collector
+  import yet.
 - ZIP limit: 512 MiB compressed, 2 GiB declared expanded, 5,000 entries.
   Selected inventory files are limited to 4 MiB each; large logs remain unopened.
 - ZIP64, encrypted archives and ambiguous legacy filename encodings are
