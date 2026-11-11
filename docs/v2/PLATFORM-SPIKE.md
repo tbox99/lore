@@ -25,33 +25,36 @@ corporate compatibility. The UI/transport arrangement remains experimental.
 
 | Check | Result | Evidence / limitation |
 | --- | --- | --- |
-| JavaScript importer, ZIP, comparison and Lenovo transport unit tests | PASS | 33 tests on the OpenCode Node 24.18.1 runtime, including 12 comparison tests and localized messages with unchanged evidence |
+| JavaScript importer, ZIP, comparison, inventory and Lenovo evidence tests | PASS | 76 tests on OpenCode Node 24.18.1 and CI, including 12 comparison, 11 inventory, 11 package/readme extraction and 17 update-assessment tests. Repeated conflicting fields, placeholder identities, unknown rules and package/component separation are covered. |
 | Python loopback transport tests | PASS | 13 tests on OpenCode Python 3.14.4 |
 | Linux HTTP start and asset delivery | PASS | Health, HTML, ES module, ZIP fixture and MIME types returned correctly |
-| Real supplied CDAT import, shared core under Node on Linux | PASS, partial source coverage | 170 files indexed, 809,756,540 bytes declared expanded; only 102,848 archive bytes read; 10 overview fields and 244 driver rows recovered. Six driver-table lines remain unresolved and are flagged. No customer identifiers committed. |
+| Initial real supplied CDAT import, shared core under Node on Linux | PASS, partial source coverage | Earlier importer evidence: 170 files indexed, 809,756,540 bytes declared expanded; 102,848 archive bytes read; 10 overview fields and 244 driver rows recovered. Six driver-table lines remain unresolved and are flagged. No customer identifiers committed. |
+| Expanded private CDAT radio inventory, shared core under Node | PASS, partial source coverage | 131,411 archive bytes read after five bounded source additions; 344 PnP records and 319 identifiable store records, including two damaged store records retained as issues. One WLAN and one Bluetooth radio each have an unambiguous device/INF/store/report chain. No field conflicts found in this sample. This is not native-browser evidence. |
 | Real supplied CDAT compared with itself, shared core under Node | PASS, matching uncertainty retained | Zero observed differences or one-sided records; 129 equal results and 26 unresolved results: 25 duplicate driver-name groups plus one incomplete-inventory summary. This is a core check, not native-browser evidence. |
 | CDAT collection failures | PASS | COMException, NullArray and unavailable-event-log errors are reported as incomplete collection |
 | Mixed partial capture sources | PASS | Different capture roots rejected; regression included |
 | Lenovo catalog/package/readme from OpenCode | PASS | Ordinary HTTPS requests to the official 21MM Win11 catalog and n47uj13w metadata/readme returned content with source URL and UTC retrieval time |
+| Current BIOS/WLAN/Bluetooth metadata and readme extraction | PASS | Four live official descriptors/readmes parsed through the actual functions with jsdom DOMParser. Current BIOS/header versions, model lists, dependency notices and radio IDs recovered; history excluded. A projection of the private capture's relevant fields produced three newer-version comparisons and one unmatched radio package. Applicability stayed unknown where hardware identity or prerequisites were not fully established. No live native-browser or corporate-network claim. |
 | UI in DOM emulation | PASS, limited | Actual app modules plus jsdom: demo import, tabs, filters, source binding, live catalog (46 entries), BIOS metadata and readme text. Native dialog/scroll behavior emulated; no visual/focus acceptance inferred. |
 | Local OpenCode Chromium UI acceptance | BLOCKED | Chromium with sandbox enabled exited with 'No usable sandbox!' on OpenCode. Zero browser cases executed; no protections disabled. |
 | Local OpenCode Firefox acceptance | BLOCKED before launch | Remote command allow-list rejected firefox --version. No wrapper retry or screenshot. |
 | Windows PowerShell 5.1 host on GitHub Windows runner | PASS | Six HTTP contract tests start the real host without an execution-policy override and verify socket release after termination. |
 | Owner's Windows UI startup and real archive import | PASS, user-observed | Screenshot supplied on 2026-11-11 shows 170 files, 244 driver rows and four source-quality notices. Exact browser, elevation and proxy access were not established by this evidence. Screenshot and device identifiers are not committed. |
 | Corporate Windows proxy access and complete manual interaction | NOT RUN | Requires the remaining checks in the intended corporate environment. |
-| Native Windows Chromium browser with sandbox enabled | PASS | 23 recorded checks: import, keyboard/source-dialog behavior, recovery and async guards, synthetic Lenovo XML/readme rendering, English default in a German browser, live translation without data loss or network requests, 18/20/22 px text scaling, persistence and invalid/blocked storage, responsive layout, no page errors/external requests and host cleanup. Six added comparison checks cover identical/changed inputs, correct A/B sources, filters/preferences, failed B recovery, incomplete/ambiguous data and invalidation of an in-flight B import when A changes. |
-| Windows readable-layout validation | PASS, provisional presentation | Previously inspected overview screenshots at 1440 px in English/standard and German/extra-large, plus 384 px German/extra-large. Comparison screenshots additionally inspected at 1440 px English/standard and 384 px German/extra-large. Native checks verify internal table scrolling without page overflow, source-dialog scaling and keyboard-only skip-link visibility. Narrow comparison tables require horizontal scrolling; final presentation remains open. |
+| Native Windows Chromium browser with sandbox enabled | PASS | 29 recorded checks: previous import/comparison/preferences checks plus six new Lenovo-check groups covering explicit requests and direct navigation, component versions versus package versions, original CDAT/readme evidence, locale/scale retention, malformed metadata/missing-readme recovery, A/B binding and stale-result cancellation, and missing radio identity. No page/console errors or unexpected external requests; host cleanup passed. Lenovo responses are controlled synthetic fixtures. |
+| Windows readable-layout validation | PASS, provisional presentation | Previously inspected overview/comparison views at desktop and narrow widths. New update-result screenshots inspected at 1440 px English/standard and 384 px German/extra-large, including direct capture actions and expanded readme sections. Native checks verify no page overflow and preference scaling. Narrow comparison tables require horizontal scrolling; lengthy evidence lists and final presentation remain open. |
 | Linux native browser interaction | NOT RUN | Host/core tests and DOM emulation pass, but neither establishes actual Linux browser behavior. |
 
-Verified code revision: `9978f6571a07b47f980d9414432544edbda66041`.
-[Successful CI run and synthetic browser evidence](https://github.com/tbox99/lore/actions/runs/43021835497).
+Verified code revision: `7b1c1df431954005421a44b062e779013ba47751`.
+[Successful CI run and synthetic browser evidence](https://github.com/tbox99/lore/actions/runs/43026095304).
 The native browser test uses controlled Lenovo responses; the separate live
 Lenovo checks above ran on OpenCode. Corporate Windows policy/proxy behavior
 still requires the user's environment.
 
-The 21MM catalog currently contains an older BIOS package than was independently
-observed on the support website during research. Therefore the prototype labels
-catalog packages as research results, not as the latest applicable updates.
+Earlier research found that the 21MM catalog contained an older BIOS package
+than the support website. The new check therefore reports versions in the
+queried catalog and keeps applicability separate; it does not claim the latest
+support-website release or recommend installation.
 
 ## Scope of the first importer
 
@@ -64,8 +67,9 @@ ZIP64, invalid checksums and over-limit content have explicit failure paths.
 Text encodings supported initially: UTF-8 and BOM-marked UTF-16. Unsupported
 encodings and wrapped/unreadable rows stay visible as incomplete parsing.
 An initial [two-capture evidence comparison](COMPARISON-PROTOTYPE.md) now extends
-this importer. Active-device reconciliation, automatic package applicability
-analysis and report export remain future scope.
+this importer. The [bounded Lenovo check](UPDATE-PROTOTYPE.md) adds a narrow
+device/INF/radio reconciliation and declarative assessment. Broader device
+coverage, complete package applicability and report export remain future scope.
 
 ## Remaining decision
 
