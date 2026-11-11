@@ -138,7 +138,7 @@ function renderOverview() {
   const warnings = data.warnings || [];
   $('capture-title').textContent = data.device.model || data.device.mtm || t('capture');
   $('capture-meta').textContent = t('captureMeta', { file: data.archive.fileName || t('archive'), count: number.format(data.archive.entryCount), size: bytes(data.archive.totalUncompressedBytes) });
-  $('capture-state').textContent = warnings.length ? t('noticeCount', { count: number.format(warnings.length) }) : t('imported');
+  $('capture-state').textContent = warnings.length ? t(warnings.length === 1 ? 'noticeCountOne' : 'noticeCount', { count: number.format(warnings.length) }) : t('imported');
   $('capture-state').className = `capture-state ${warnings.length ? 'partial' : 'loaded'}`;
   for (const key of fieldLabels) {
     const item = node('div', 'device-item');

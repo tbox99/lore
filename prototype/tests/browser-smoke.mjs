@@ -105,6 +105,14 @@ try {
   await preferences(page, 'en', 'standard');
   assert.equal(await fontPixels('html'), 18);
   assert.match(await page.locator('#tab-drivers').textContent(), /Drivers/);
+  const skipLink = page.locator('.skip-link');
+  assert.equal(await skipLink.evaluate(link => getComputedStyle(link).opacity), '0');
+  await page.keyboard.press('Tab');
+  assert.equal(await skipLink.evaluate(link => document.activeElement === link), true);
+  assert.equal(await skipLink.evaluate(link => getComputedStyle(link).opacity), '1');
+  assert.ok((await skipLink.boundingBox()).y >= 0);
+  await page.keyboard.press('Tab');
+  assert.equal(await skipLink.evaluate(link => getComputedStyle(link).opacity), '0');
   pass('English is the default in a German browser', '18 px default root font');
 
   const demoPath = path.join(prototype, 'web', 'demo-cdat.zip');
