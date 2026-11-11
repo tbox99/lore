@@ -17,7 +17,7 @@ install.ps1
 .mypy_cache/
 .coverage
 htmlcov/
-tests/
+# Commit reviewed/synthetic tests and fixtures; private inputs are excluded below.
 
 # Internal docs
 CHECKPOINT_2025-05-15.md
@@ -47,5 +47,14 @@ Thumbs.db
 
 # Misc
 *.log
+!tests/fixtures/**/*.log
 deploy_key
 deploy_key.pub
+
+# LORE v2 private input and generated reports (never commit customer data)
+/local-data/
+/exports/
+/reports/
+/scratch/
+*.evtx
+*.dmp
