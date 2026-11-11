@@ -87,5 +87,21 @@ Regenerate the committed synthetic demo ZIP when its source fixture changes:
 node prototype/tests/build-demo.mjs
 ```
 
-The separate prototype CI uses these checks. Existing root npm/Tauri commands
+Native browser checks use pinned, developer-only Playwright dependencies:
+
+```sh
+cd prototype
+npm ci
+npx playwright install chromium
+npm run test:browser
+```
+
+The test starts its own loopback host and Chromium with its sandbox enabled,
+uses only synthetic inputs and stops its host afterwards. Screenshots and
+results are written to ignored `prototype/test-results/`. No browser protection
+should be disabled to make a failed local launch pass.
+
+The separate prototype CI uses these checks. Windows PowerShell 5.1 and native
+Windows Chromium passed in [this run](https://github.com/tbox99/lore/actions/runs/43006480566).
+Corporate Windows remains a separate manual check. Existing root npm/Tauri commands
 still belong to LORE 1.x and do not test the new prototype.

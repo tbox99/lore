@@ -32,11 +32,19 @@ still change based on that test.
 | Mixed partial capture sources | PASS | Different capture roots rejected; regression included |
 | Lenovo catalog/package/readme from OpenCode | PASS | Ordinary HTTPS requests to the official 21MM Win11 catalog and n47uj13w metadata/readme returned content with source URL and UTC retrieval time |
 | UI in DOM emulation | PASS, limited | Actual app modules plus jsdom: demo import, tabs, filters, source binding, live catalog (46 entries), BIOS metadata and readme text. Native dialog/scroll behavior emulated; no visual/focus acceptance inferred. |
-| Real Chromium UI acceptance | BLOCKED | Chromium with sandbox enabled exited with 'No usable sandbox!' on OpenCode. Zero browser cases executed; no protections disabled. |
-| Installed Firefox acceptance | BLOCKED before launch | Remote command allow-list rejected firefox --version. No wrapper retry or screenshot. |
-| Windows PowerShell host | NOT RUN at initial implementation | Windows CI smoke test is supplied separately; record its actual result before claiming runtime success. |
+| Local OpenCode Chromium UI acceptance | BLOCKED | Chromium with sandbox enabled exited with 'No usable sandbox!' on OpenCode. Zero browser cases executed; no protections disabled. |
+| Local OpenCode Firefox acceptance | BLOCKED before launch | Remote command allow-list rejected firefox --version. No wrapper retry or screenshot. |
+| Windows PowerShell 5.1 host on GitHub Windows runner | PASS | Six HTTP contract tests start the real host without an execution-policy override and verify socket release after termination. |
 | Corporate Windows startup, browser interaction and proxy access | NOT RUN | Requires the intended corporate environment. |
-| Real browser layout, keyboard focus and interaction | NOT RUN | DOM emulation cannot establish these properties. |
+| Native Windows Chromium browser with sandbox enabled | PASS | Ten recorded checks: real file input, ZIP capability, tabs/filters, native source dialog, Escape/focus return, failed-import recovery, late-response handling, synthetic Lenovo XML/readme rendering, no page errors/external requests, host cleanup. |
+| Windows screenshot inspection | PASS at 1440 px | Synthetic overview and readme screenshots preserved as CI evidence; overview visually inspected. Mobile/responsive acceptance is not claimed. |
+| Linux native browser interaction | NOT RUN | Host/core tests and DOM emulation pass, but neither establishes actual Linux browser behavior. |
+
+Verified code revision: `53b56449097679db307e8445139af78d8f6c7a74`.
+[Successful CI run and synthetic browser evidence](https://github.com/tbox99/lore/actions/runs/43006480566).
+The native browser test uses controlled Lenovo responses; the separate live
+Lenovo checks above ran on OpenCode. Corporate Windows policy/proxy behavior
+still requires the user's environment.
 
 The 21MM catalog currently contains an older BIOS package than was independently
 observed on the support website during research. Therefore the prototype labels
