@@ -88,3 +88,11 @@ test('A cancelled selection preserves AbortError for UI stale-request handling',
   });
   await assert.rejects(fetchCatalog('21MM', 'Win11', { signal: controller.signal }), { name: 'AbortError' });
 });
+
+test('A same-host response for a different document cannot be attributed to the requested source', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({
+    url: 'https://download.lenovo.com/pccbbs/mobiles/different.txt',
+    retrievedAt: '2026-11-11T10:00:00Z', text: 'Different package readme',
+  })));
+  await assert.rejects(fetchReadme('/pccbbs/mobiles/requested.txt'), { code: 'lenovo.incompleteMetadata' });
+});

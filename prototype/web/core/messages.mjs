@@ -1,6 +1,15 @@
 // Stable, locale-independent descriptors keep imported evidence separate from UI language.
 // English is the fallback for every caller; the presentation layer supplies its locale.
 const catalog = {
+  "coverage.hardware": { "en": "PnP device identities", "de": "PnP-Gerätekennungen" },
+  "coverage.bindings": { "en": "Reported device-to-INF bindings", "de": "Gemeldete Geräte-INF-Zuordnung" },
+  "coverage.store": { "en": "Driver-store packages", "de": "Pakete im Treiberspeicher" },
+  "coverage.wlan": { "en": "WLAN radio report", "de": "WLAN-Adapterbericht" },
+  "coverage.bluetooth": { "en": "Bluetooth radio report", "de": "Bluetooth-Adapterbericht" },
+  "coverage.inventoryRows": {
+    "en": "{read} records recognized; {skipped} lines unresolved. Presence and driver binding are assessed separately.",
+    "de": "{read} Einträge erkannt; {skipped} Zeilen ungeklärt. Präsenz und Treiberzuordnung werden getrennt bewertet."
+  },
   "zip.legacyNames": {
     "en": "ZIP filenames with legacy character encodings are not supported yet.",
     "de": "ZIP-Dateinamen mit älterer Zeichenkodierung werden noch nicht unterstützt."

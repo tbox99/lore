@@ -1,4 +1,5 @@
 import { message, messageError, formatMessage } from './messages.mjs';
+import { extractPackageEvidence, extractReadmeEvidence } from './package-evidence.mjs';
 
 // Lenovo transport and metadata parsing. Package metadata is not an applicability verdict.
 const ORIGIN = 'https://download.lenovo.com';
@@ -77,7 +78,9 @@ async function requestDocument(value, { signal } = {}) {
         typeof result?.retrievedAt !== 'string' || !Number.isFinite(Date.parse(result.retrievedAt))) {
       throw messageError('lenovo.incompleteMetadata');
     }
-    return { sourceUrl: lenovoUrl(result.url).href, retrievedAt: result.retrievedAt, text: result.text };
+    const returnedUrl = lenovoUrl(result.url).href;
+    if (returnedUrl !== url.href) throw messageError('lenovo.incompleteMetadata');
+    return { sourceUrl: returnedUrl, retrievedAt: result.retrievedAt, text: result.text };
   } catch (error) {
     if (timedOut) throw messageError('lenovo.timeout');
     if (controller.signal.aborted) throw new DOMException('Request cancelled.', 'AbortError');
@@ -141,6 +144,7 @@ export async function fetchCatalog(machineType, os, options = {}) {
 
 export function parsePackage(xml, { sourceUrl, retrievedAt }) {
   const root = parseXml(xml, 'Package');
+  const evidence = extractPackageEvidence(root, { sourceUrl });
   const readmeNode = child(child(root, 'Files'), 'Readme');
   const readmeName = text(child(localized(readmeNode, 'File'), 'Name'));
   let readmeUrl = null;
@@ -167,7 +171,8 @@ export function parsePackage(xml, { sourceUrl, retrievedAt }) {
     notes: noteDescriptors.map(descriptor => formatMessage(descriptor)),
     noteDescriptors,
     // A package version is not an installed component's driver version.
-    componentVersions: [],
+    componentVersions: evidence.componentVersions,
+    evidence,
   };
 }
 
@@ -198,5 +203,6 @@ export async function fetchReadme(readmeUrl, options = {}) {
     throw messageError('lenovo.readmeType');
   }
   const result = await requestDocument(url.href, options);
-  return { ...result, text: readmePlainText(result.text, url.pathname.endsWith('.html')) };
+  const text = readmePlainText(result.text, url.pathname.endsWith('.html'));
+  return { ...result, text, originalText: result.text, evidence: extractReadmeEvidence(text, result) };
 }

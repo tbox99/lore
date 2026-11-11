@@ -1,6 +1,7 @@
 import { importCdat } from './core/cdat.mjs';
 import { compareSnapshots } from './core/compare.mjs';
 import { fetchCatalog, fetchPackage, fetchReadme } from './core/lenovo.mjs';
+import { checkUpdates } from './core/updates.mjs';
 import { formatMessage } from './core/messages.mjs';
 import { translate, translations } from './i18n.mjs';
 
@@ -11,9 +12,11 @@ const locale = () => preferences.language === 'de' ? 'de-DE' : 'en-US';
 const uiMessages = new Map();
 let sourceView = null;
 const state = { secondary: null, comparison: null, comparing: false, compareSeq: 0, secondaryFile: null, readmeLoading: false, catalogQuery: null, snapshot: null, catalog: null, package: null, selectedPackage: null, importing: false, importSeq: 0, catalogSeq: 0, detailSeq: 0, readmeSeq: 0 };
+Object.assign(state, { updates: null, updateSeq: 0, updating: false });
 let catalogController = null;
 let detailController = null;
 let readmeController = null;
+let updateController = null;
 let dragDepth = 0;
 const number = { format: (value) => new Intl.NumberFormat(locale()).format(value) };
 const fieldLabels = ['model', 'mtm', 'serial', 'bios', 'ec', 'meFirmware', 'os', 'build', 'capturedAt', 'cdatVersion'];
@@ -111,6 +114,7 @@ function activateTab(name, focus = false) {
   });
 }
 function resetLenovo() {
+  resetUpdates();
   state.catalogSeq += 1; state.detailSeq += 1; state.readmeSeq += 1;
   catalogController?.abort(); detailController?.abort(); readmeController?.abort();
   state.catalog = null; state.package = null; state.selectedPackage = null; state.catalogQuery = null; state.readmeLoading = false;
@@ -125,6 +129,9 @@ function resetLenovo() {
 
 function renderOverview() {
   const data = state.snapshot;
+  $('capture-actions').hidden = !data;
+  $('capture-compare').disabled = state.importing || !data;
+  $('capture-updates').disabled = state.importing || !data;
   $('overview-empty').hidden = !!data;
   $('overview-content').hidden = !data;
   $('driver-tab-count').textContent = number.format(data?.drivers?.length || 0);
@@ -207,7 +214,7 @@ function renderFiles() {
   $('files-empty').hidden = !!rows.length;
   $('files-empty').textContent = t(state.snapshot ? 'filesFiltered' : 'openFirst');
 }
-function renderSnapshot() { renderOverview(); renderDrivers(); renderFiles(); renderComparison(); }
+function renderSnapshot() { renderOverview(); renderDrivers(); renderFiles(); renderComparison(); renderUpdateControls(); }
 function setImportBusy(busy) {
   state.importing = busy;
   $('workspace-card').setAttribute('aria-busy', String(busy));
@@ -216,6 +223,7 @@ function setImportBusy(busy) {
   $('machine-type').disabled = busy;
   $('catalog-os').disabled = busy;
   $('compare-input').disabled = busy || !state.snapshot || !zipSupported;
+  renderUpdateControls();
 }
 async function loadArchive(file, isDemo = false) {
   if (!zipSupported) return;
@@ -236,6 +244,7 @@ async function loadArchive(file, isDemo = false) {
     if (seq !== state.importSeq) return;
     state.snapshot = result;
     status('compare-status', () => t('compareIdle'));
+    status('update-status', () => t('updateReady'));
     const machineType = String(result.device.mtm || '').slice(0, 4).toUpperCase();
     $('machine-type').value = /^[A-Z0-9]{4}$/.test(machineType) ? machineType : '';
     if (/windows\s*10/i.test(result.device.os || '')) $('catalog-os').value = 'Win10';
@@ -402,6 +411,166 @@ function renderComparison() {
   renderComparisonRows(result.platformRows, 'platform-comparison', 'platform-comparison-empty', 'comparison-platform-count');
   renderComparisonRows(result.driverRows, 'driver-comparison', 'driver-comparison-empty', 'comparison-driver-count');
 }
+function renderUpdateControls() {
+  $('update-check').disabled = state.importing || state.updating || !state.snapshot;
+  $('update-check').textContent = t(state.updating ? 'updateChecking' : 'updateCheck');
+  $('update-capture-context').textContent = state.snapshot
+    ? t('updateCaptureContext', { model: state.snapshot.device.model || state.snapshot.device.mtm || t('capture'), time: state.snapshot.device.capturedAt || t('timeUnknown') })
+    : t('openFirst');
+}
+function resetUpdates() {
+  state.updateSeq += 1;
+  updateController?.abort();
+  updateController = null;
+  state.updates = null; state.updating = false;
+  if (sourceView?.side === 'updates') {
+    if ($('source-dialog').open) $('source-dialog').close();
+    sourceView = null;
+  }
+  error('update-error');
+  status('update-status', () => t(state.snapshot ? 'updateReady' : 'openFirst'));
+  renderUpdates();
+}
+function updateReadmeButton(row) {
+  if (!row.readme?.text) return null;
+  const button = node('button', 'button secondary', t('updateOriginalReadme'));
+  button.type = 'button'; button.dataset.updateReadme = row.id;
+  button.addEventListener('click', () => {
+    const returnFocus = () => {
+      const current = Array.from($('update-results').querySelectorAll('[data-update-readme]')).find(item => item.dataset.updateReadme === row.id);
+      (button.isConnected ? button : current)?.focus();
+    };
+    showText(row.package?.title || row.name || t('updateReadme'), row.readme.text,
+      () => t('updateReadmeSource', { url: row.readme.sourceUrl, time: humanTime(row.readme.retrievedAt) }), 'readme', returnFocus, 'updates');
+  });
+  return button;
+}
+function renderUpdates() {
+  renderUpdateControls();
+  const result = state.updates;
+  const root = $('update-results');
+  const expanded = new Set(Array.from(root.querySelectorAll('details[open]')).map(item => item.dataset.detailKey));
+  root.hidden = !result;
+  root.replaceChildren();
+  if (!result) return;
+  const meta = node('div', 'catalog-meta');
+  meta.append(node('strong', '', t('updateResultCount', { count: number.format(result.rows?.length || 0) })),
+    node('span', '', t('catalogMeta', { type: result.machineType || t('notDetermined'), os: result.os === 'Win11' ? 'Windows 11' : result.os === 'Win10' ? 'Windows 10' : result.os || t('notDetermined'), time: humanTime(result.catalog?.retrievedAt || result.retrievedAt) })));
+  const catalogLink = safeLink(result.catalog?.sourceUrl, t('originalCatalog'));
+  if (catalogLink) meta.append(catalogLink);
+  root.append(meta);
+  if (result.errors?.length) {
+    const warning = node('div', 'alert warning');
+    warning.append(node('p', '', t('updatePartialErrors', { count: number.format(result.errors.length) })));
+    const list = node('ul');
+    for (const item of result.errors) {
+      const entry = node('li');
+      const link = safeLink(item.url, t('updateFailedDocument'));
+      if (link) entry.append(link, document.createTextNode(' · '));
+      entry.append(document.createTextNode(messageOf(item.message || item.error || t('updateRequestFailed'))));
+      list.append(entry);
+    }
+    warning.append(list); root.append(warning);
+  }
+  for (const row of result.rows || []) {
+    const card = node('article', 'update-card');
+    card.dataset.updateId = row.id;
+    card.dataset.kind = row.kind;
+    card.dataset.status = row.status;
+    card.dataset.versionRelation = row.versionRelation;
+    card.dataset.applicability = String(row.applicability);
+    const header = node('div', 'update-card-header');
+    const heading = node('div');
+    heading.append(node('p', 'eyebrow', t(Object.hasOwn(translations.en, `updateKind_${row.kind}`) ? `updateKind_${row.kind}` : 'component')),
+      node('h4', '', row.name || row.package?.title || t('component')));
+    header.append(heading, node('span', `status-tag ${row.status === 'unresolved' ? 'caution' : row.status === 'candidate' ? 'difference' : ''}`, t(Object.hasOwn(translations.en, `updateStatus_${row.status}`) ? `updateStatus_${row.status}` : 'updateStatus_unresolved')));
+    card.append(header);
+    const fields = node('dl', 'update-fields');
+    for (const [label, value, key] of [
+      ['updateInstalled', row.installedVersion, 'installed'], ['updateOffered', row.offeredVersion, 'offered'],
+      ['updateVersionResult', t(Object.hasOwn(translations.en, `updateVersion_${row.versionRelation}`) ? `updateVersion_${row.versionRelation}` : 'updateVersion_unknown'), 'version-result'],
+      ['updateApplicability', t(Object.hasOwn(translations.en, `updateApplicability_${row.applicability}`) ? `updateApplicability_${row.applicability}` : 'updateApplicability_unknown'), 'applicability'],
+    ]) {
+      const field = node('div'); field.dataset.updateField = key;
+      field.append(node('dt', '', t(label)), node('dd', value ? '' : 'subtle', value || t('notDetermined'))); fields.append(field);
+    }
+    card.append(fields);
+    if (row.reasons?.length) {
+      const reasons = node('ul', 'update-reasons');
+      for (const reason of new Set(row.reasons)) reasons.append(node('li', '', t(Object.hasOwn(translations.en, `updateReason_${reason}`) ? `updateReason_${reason}` : 'updateReason_unknown')));
+      card.append(reasons);
+    }
+    if (row.sources?.length) {
+      const sources = node('div', 'update-sources');
+      sources.append(node('strong', '', t('updateCaptureEvidence')));
+      for (const ref of row.sources) if (ref.path) sources.append(sourceButton(ref.path, ref.line, null, state.snapshot, 'A'));
+      card.append(sources);
+    }
+    if (row.package) {
+      const metadata = node('div', 'update-package');
+      metadata.append(node('p', '', row.package.title || row.package.id || t('package')),
+        node('p', 'subtle', t('updatePackageContext', { version: row.package.version || t('notSpecified'), time: humanTime(row.package.retrievedAt) })));
+      const links = node('div', 'package-links');
+      const source = safeLink(row.package.sourceUrl, t('originalMetadata'));
+      if (source) links.append(source);
+      const readmeLink = safeLink(row.readme?.sourceUrl || row.package.readmeUrl, t('readmeLink'));
+      if (readmeLink) links.append(readmeLink);
+      const readmeButton = updateReadmeButton(row);
+      if (readmeButton) links.append(readmeButton);
+      metadata.append(links); card.append(metadata);
+    }
+    if (row.readme?.sections?.length) {
+      const details = node('details', 'update-readme-sections');
+      details.dataset.detailKey = `readme:${row.id}`;
+      details.open = expanded.has(details.dataset.detailKey);
+      details.append(node('summary', '', t('updateReadmeSections')));
+      details.append(node('p', 'subtle', t('updateReadmeExtractScope')));
+      if (row.readme.evidence?.truncated) details.append(node('p', 'alert warning', t('updateReadmeTruncated')));
+      for (const section of row.readme.sections) {
+        const sectionNode = node('section');
+        const key = `updateSection_${section.kind}`;
+        sectionNode.append(node('h5', '', Object.hasOwn(translations.en, key) ? t(key) : section.title || t('updateReadme')),
+          node('p', 'subtle', t('updateReadmeLines', { start: section.startLine ?? '–', end: section.endLine ?? section.startLine ?? '–' })),
+          node('pre', 'update-readme-text', section.text || ''));
+        details.append(sectionNode);
+      }
+      card.append(details);
+    }
+    root.append(card);
+  }
+  if (!result.rows?.length) root.append(node('p', 'alert warning', t('updateNoResults')));
+}
+async function loadUpdates() {
+  const snapshot = state.snapshot;
+  if (!snapshot || state.importing || state.updating) return;
+  resetUpdates();
+  const seq = state.updateSeq;
+  const importSeq = state.importSeq;
+  updateController = new AbortController();
+  state.updating = true;
+  renderUpdates();
+  status('update-status', () => t('updateFetching'), true);
+  const current = () => seq === state.updateSeq && importSeq === state.importSeq && snapshot === state.snapshot;
+  try {
+    const result = await checkUpdates(snapshot, {
+      signal: updateController.signal,
+      onProgress: ({ completed, total }) => {
+        if (current()) status('update-status', () => t('updateProgress', { completed: number.format(completed), total: number.format(total) }), true);
+      },
+    });
+    if (!current()) return;
+    state.updates = result;
+    renderUpdates();
+    status('update-status', () => t(result.errors?.length ? 'updateLoadedPartial' : 'updateLoaded'));
+  } catch (err) {
+    if (!current() || err?.name === 'AbortError') return;
+    error('update-error', () => messageOf(err));
+    status('update-status', () => t('updateFailed'));
+  } finally {
+    if (current()) { state.updating = false; renderUpdateControls(); }
+  }
+}
+
 function packageName(pkg) { try { return new URL(pkg.url).pathname.split('/').pop() || pkg.path; } catch { return pkg.path || pkg.url || t('package'); } }
 function renderCatalog() {
   const catalog = state.catalog;
@@ -555,6 +724,9 @@ document.querySelectorAll('[data-tab]').forEach((tab, index, tabs) => {
     if (target !== undefined) { event.preventDefault(); activateTab(tabs[target].dataset.tab, true); }
   });
 });
+$('capture-compare').addEventListener('click', () => { activateTab('comparison'); $('compare-input').focus(); });
+$('capture-updates').addEventListener('click', () => { activateTab('lenovo'); $('update-check').focus(); });
+$('update-check').addEventListener('click', loadUpdates);
 $('compare-input').addEventListener('change', (event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) loadComparison(file); });
 $('compare-remove').addEventListener('click', resetComparison);
 $('comparison-filter').addEventListener('change', renderComparison);
@@ -581,6 +753,7 @@ $('font-size-select').addEventListener('change', () => {
 status('app-status', () => t('readyPrompt'));
 status('catalog-status', () => t('catalogIdle'));
 status('compare-status', () => t('compareOpenA'));
+status('update-status', () => t('openFirst'));
 applyPreferences();
 
 function readPreferences() {
@@ -607,6 +780,6 @@ function applyPreferences() {
     document.querySelectorAll(`[data-i18n-${attribute}]`).forEach(element => { element.setAttribute(attribute, t(element.getAttribute(`data-i18n-${attribute}`))); });
   }
   if (!zipSupported) $('browser-warning').textContent = t('browserUnsupported');
-  renderSnapshot(); renderCatalog(); renderPackage(); renderSource();
+  renderSnapshot(); renderCatalog(); renderPackage(); renderUpdates(); renderSource();
   for (const id of uiMessages.keys()) renderMessage(id);
 }

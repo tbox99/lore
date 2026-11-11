@@ -1,11 +1,11 @@
 # Running the LORE 2.0 M0 prototype
 
 This is a functional prototype. It can read Windows CDAT ZIPs locally, display
-device/BIOS/driver evidence, compare two captures and retrieve Lenovo
-catalog/package/readme data. Presentation remains provisional.
+device/BIOS/driver evidence, compare two captures and check BIOS/WLAN/Bluetooth
+versions against Lenovo catalog/package/readme evidence. Presentation remains provisional.
 The Windows and real-browser acceptance status is documented in
-[PLATFORM-SPIKE.md](PLATFORM-SPIKE.md). It does not yet decide which installed
-components need updating.
+[PLATFORM-SPIKE.md](PLATFORM-SPIKE.md). The bounded Lenovo check separates version
+differences from unresolved applicability and installation prerequisites.
 
 ## Windows: no additional application runtime
 
@@ -56,7 +56,8 @@ archive is sent by this prototype. File input is read-only.
 
 1. Open the first ZIP using **Choose ZIP**. This is capture A and remains the
    source for Overview, Drivers, Files and the Lenovo lookup.
-2. Open **Comparison** and select a second ZIP as capture B.
+2. Select **Compare with another capture** beneath the capture header (or open
+   **Comparison**) and select a second ZIP as capture B.
 3. Review BIOS, EC, ME firmware, Windows and driver records side by side.
    Use the result filter to inspect differences or unresolved rows, and search
    for a component. Source links open the corresponding A or B original text.
@@ -66,6 +67,15 @@ archive is sent by this prototype. File input is read-only.
 Replacing A clears B. Replacing or removing B keeps A. Reloading the page clears
 both captures; language/text-size preferences remain. All comparison data stays
 in the browser. See [comparison scope and limitations](COMPARISON-PROTOTYPE.md).
+
+## Check BIOS, WLAN and Bluetooth
+
+After opening capture A, select **Lenovo update check** below its header, then
+**Check Lenovo updates**. Review the installed/offered component versions and
+the separate prerequisite assessment. Expand **Readme extracts** and follow
+the original sources for details. Unmatched hardware, missing data and failed
+requests remain explicit. The check uses capture A's machine type and OS;
+capture B does not change it. See [scope and limitations](UPDATE-PROTOTYPE.md).
 
 ## Language and text size
 
@@ -93,10 +103,11 @@ languages can be added through the message dictionaries.
   Selected inventory files are limited to 4 MiB each; large logs remain unopened.
 - ZIP64, encrypted archives and ambiguous legacy filename encodings are
   explicitly unsupported. Recent browser support for raw DEFLATE is required.
-- Driver-store packages are not mixed into the displayed driver table.
-  Full device identity and active-driver reconciliation come later.
-- Readmes are shown as plain text; automatic change/prerequisite extraction is
-  future work.
+- Driver-store packages are not mixed into the displayed driver table. The
+  Lenovo check uses a separate device/INF/radio reconciliation for WLAN and
+  Bluetooth; broader identity and prerequisite coverage remain future work.
+- Current readme sections are extracted with source lines. Free-form dependency
+  evaluation and changes specifically since the installed release remain future work.
 - The Windows transport is intentionally small and sequential. Confirm startup
   and responsiveness in the intended environment before broadening its scope.
 

@@ -1,5 +1,6 @@
 import { openZip } from './zip.mjs';
 import { message, messageError, formatMessage } from './messages.mjs';
+import { buildInventory } from './inventory.mjs';
 
 export function decodeText(bytes) {
   if (bytes[0] === 255 && bytes[1] === 254) return new TextDecoder('utf-16le').decode(bytes);
@@ -12,7 +13,10 @@ function keyValues(text) {
   const values = new Map();
   text.split(/\r?\n/).forEach((line, index) => {
     const match = line.match(/^\s*([\w][\w ()/-]*?)\s*:\s*(.*?)\s*$/);
-    if (match && !values.has(match[1].toLowerCase())) values.set(match[1].toLowerCase(), { value: match[2], line: index + 1 });
+    if (!match) return;
+    const key = match[1].toLowerCase();
+    if (!values.has(key)) values.set(key, []);
+    values.get(key).push({ value: match[2], line: index + 1 });
   });
   return values;
 }
@@ -34,7 +38,7 @@ export async function importCdat(file) {
   const zip = await openZip(file);
   const files = zip.entries.filter(entry => !entry.isDirectory);
   const warnings = [], coverage = [], texts = Object.create(null), sources = Object.create(null);
-  const device = Object.fromEntries(['model', 'mtm', 'serial', 'bios', 'ec', 'meFirmware', 'os', 'build', 'capturedAt', 'cdatVersion'].map(name => [name, null]));
+  const device = Object.fromEntries(['model', 'mtm', 'serial', 'bios', 'ec', 'meFirmware', 'os', 'build', 'osArchitecture', 'capturedAt', 'cdatVersion'].map(name => [name, null]));
   const findUnique = (pattern, label) => {
     const found = files.filter(entry => pattern.test(entry.name));
     if (found.length > 1) throw messageError('cdat.multipleSources', { label });
@@ -45,10 +49,18 @@ export async function importCdat(file) {
   const computerPath = findUnique(/(^|\/)CDAT[^/]*-ComputerInfo-[^/]+\.log$/i, 'ComputerInfo');
   const driverPath = findUnique(/(^|\/)Installed-HWD\/Drivers\.log$/i, message('coverage.drivers'));
   const issuesPath = findUnique(/(^|\/)CDAT[^/]*-Issues-[^/]+\.log$/i, message('coverage.issues'));
+  const inventorySources = [
+    ['hardware', 'Installed-HWD/InstalledHardwareList.log'],
+    ['bindings', 'Installed-HWD/DriversINFInstallDate.log'],
+    ['store', 'Installed-HWD/Driver3rdPartyOEMINF.log'],
+    ['wlan', 'Network/WLANnetsh.log'],
+    ['bluetooth', 'Network/BluetoothSystemReport.log'],
+  ].map(([kind, suffix]) => ({ kind, suffix, path: findUnique(new RegExp('(^|/)' + suffix.replaceAll('.', '\\.') + '$', 'i'), message('coverage.' + kind)) }));
   if (!manifestPath && !quickPath) throw messageError('cdat.unsupported');
   const roots = new Set([manifestPath, quickPath, computerPath, issuesPath]
     .filter(Boolean).map(path => path.slice(0, path.lastIndexOf('/') + 1).toLowerCase()));
   if (driverPath) roots.add(driverPath.slice(0, -'Installed-HWD/Drivers.log'.length).toLowerCase());
+  for (const item of inventorySources) if (item.path) roots.add(item.path.slice(0, -item.suffix.length).toLowerCase());
   if (roots.size > 1) throw messageError('cdat.mixedRoots');
 
   function coverageItem(labelDescriptor, status, source, detailDescriptor) {
@@ -59,10 +71,10 @@ export async function importCdat(file) {
     warnings.push({ kind, message: formatMessage(messageDescriptor), messageDescriptor, source, line });
   }
   function setDetail(item, descriptor) { item.detailDescriptor = descriptor; item.detail = formatMessage(descriptor); }
-  async function load(path, labelDescriptor) {
+  async function load(path, labelDescriptor, maxBytes = 4 * 1024 ** 2) {
     if (!path) { coverage.push(coverageItem(labelDescriptor, 'missing', '', message('coverage.missing'))); return null; }
     try {
-      const text = decodeText(await zip.read(path));
+      const text = decodeText(await zip.read(path, { maxBytes }));
       if (!text.trim()) throw messageError('cdat.emptySource');
       texts[path] = text;
       coverage.push(coverageItem(labelDescriptor, 'read', path, message('coverage.read')));
@@ -93,18 +105,31 @@ export async function importCdat(file) {
   const computerText = await load(computerPath, message('coverage.computer'));
   const driverText = await load(driverPath, message('coverage.drivers'));
   const issuesText = await load(issuesPath, message('coverage.issues'));
+  function conflict(field, path, line) {
+    if (warnings.some(item => item.kind === 'conflict' && item.source === path && item.line === line && item.messageDescriptor?.params?.field === field)) return;
+    addWarning('conflict', message('warning.conflict', { field }), path, line);
+  }
   function assign(field, candidate, path) {
     if (!candidate?.value) return;
     if (device[field] && device[field] !== candidate.value) {
-      addWarning('conflict', message('warning.conflict', { field }), path, candidate.line);
+      conflict(field, path, candidate.line);
       return;
     }
     if (device[field]) return;
     device[field] = candidate.value; sources[field] = { path, line: candidate.line };
   }
+  function assignOccurrences(field, candidates = [], path) {
+    const nonempty = candidates.filter(candidate => candidate.value);
+    for (const candidate of nonempty) assign(field, candidate, path);
+    // Preserve every line involved in a within-source disagreement, even when
+    // the displayed value came from a higher-priority source such as the manifest.
+    if (new Set(nonempty.map(candidate => candidate.value)).size > 1) {
+      for (const candidate of nonempty) conflict(field, path, candidate.line);
+    }
+  }
   if (quickText) {
     const kv = keyValues(quickText);
-    for (const [field, key] of Object.entries({ model: 'system', mtm: 'mtm', serial: 'sn', bios: 'bios', ec: 'ec', meFirmware: 'me fw', os: 'win os', build: 'build', capturedAt: 'date' })) assign(field, kv.get(key), quickPath);
+    for (const [field, key] of Object.entries({ model: 'system', mtm: 'mtm', serial: 'sn', bios: 'bios', ec: 'ec', meFirmware: 'me fw', os: 'win os', build: 'build', capturedAt: 'date' })) assignOccurrences(field, kv.get(key), quickPath);
     if (!device.cdatVersion) {
       const version = quickText.match(/CDAT v([\d.]+) Collection/);
       if (version) assign('cdatVersion', { value: version[1], line: quickText.slice(0, version.index).split('\n').length }, quickPath);
@@ -112,7 +137,7 @@ export async function importCdat(file) {
   }
   if (computerText) {
     const kv = keyValues(computerText);
-    for (const [field, key] of Object.entries({ mtm: 'csmodel', serial: 'biosseralnumber', bios: 'biossmbiosbiosversion', os: 'osname', build: 'osversion' })) assign(field, kv.get(key), computerPath);
+    for (const [field, key] of Object.entries({ mtm: 'csmodel', serial: 'biosseralnumber', bios: 'biossmbiosbiosversion', os: 'osname', build: 'osversion', osArchitecture: 'osarchitecture' })) assignOccurrences(field, kv.get(key), computerPath);
   }
   let drivers = [];
   if (driverText) {
@@ -136,8 +161,22 @@ export async function importCdat(file) {
     });
   }
   if (!Object.values(device).some(Boolean) && !drivers.length) throw messageError('cdat.noDeviceData');
+  const inventoryDocuments = [];
+  for (const item of inventorySources) {
+    const text = await load(item.path, message('coverage.' + item.kind), 1024 ** 2);
+    const loaded = coverage[coverage.length - 1];
+    inventoryDocuments.push({ ...item, text, status: loaded.status });
+  }
+  const inventory = buildInventory(inventoryDocuments, drivers);
+  for (const item of inventory.coverage) {
+    const loaded = coverage.find(row => row.labelDescriptor.key === 'coverage.' + item.kind);
+    if (loaded?.status === 'read') {
+      loaded.status = item.status;
+      setDetail(loaded, message('coverage.inventoryRows', { read: item.read, skipped: item.skipped.length }));
+    }
+  }
   return {
-    device, sources, drivers, warnings, coverage, texts,
+    device, sources, drivers, warnings, coverage, texts, inventory,
     archive: { fileName: file.name || 'CDAT.zip', entryCount: files.length, totalUncompressedBytes: zip.totalUncompressedBytes, readBytes: zip.readBytes },
     files: files.map(({ name, size, compressedSize }) => ({ name, size, compressedSize })),
   };

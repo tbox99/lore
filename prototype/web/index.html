@@ -37,6 +37,10 @@
 
     <div class="workspace-card" id="workspace-card" aria-busy="false">
       <div class="capture-bar"><div><span class="caption-label"><span data-i18n="currentCapture">CURRENT CAPTURE</span></span><h2 id="capture-title"><span data-i18n="noCapture">No capture opened yet</span></h2><p id="capture-meta"><span data-i18n="capturePrompt">One ZIP is enough for an initial overview.</span></p></div><span class="capture-state" id="capture-state"><span data-i18n="ready">Ready</span></span></div>
+      <div class="capture-actions" id="capture-actions" hidden>
+        <button class="button secondary" id="capture-compare" type="button" data-i18n="captureCompare">Compare with another capture</button>
+        <button class="button primary" id="capture-updates" type="button" data-i18n="captureUpdates">Lenovo update check</button>
+      </div>
       <div class="tablist" role="tablist" aria-label="Analysis sections" data-i18n-aria-label="analysisAreas">
         <button class="tab" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="panel-overview" tabindex="0" data-tab="overview"><span data-i18n="overview">Overview</span></button>
         <button class="tab" id="tab-drivers" type="button" role="tab" aria-selected="false" aria-controls="panel-drivers" tabindex="-1" data-tab="drivers"><span data-i18n="drivers">Drivers</span><span class="tab-count" id="driver-tab-count">0</span></button>
@@ -103,8 +107,18 @@
       </section>
 
       <section class="tab-panel" id="panel-lenovo" role="tabpanel" aria-labelledby="tab-lenovo" tabindex="0" hidden>
+        <section class="update-check-section" aria-labelledby="update-heading">
+          <div class="section-heading"><div><h3 id="update-heading" data-i18n="updateHeading">Check BIOS, WLAN and Bluetooth</h3><p data-i18n="updateDescription">Compare the current capture with Lenovo catalog packages using the recorded device and driver evidence.</p></div></div>
+          <p class="alert info" data-i18n="updateScope">This check covers BIOS, WLAN and Bluetooth in the retrieved catalog. A newer version and confirmed prerequisites are separate results; it is not a complete update assessment.</p>
+          <p id="update-capture-context" class="footnote"></p>
+          <div class="update-actions"><button class="button primary" id="update-check" type="button" disabled data-i18n="updateCheck">Check Lenovo updates</button></div>
+          <p class="footnote" data-i18n="updatePrivacy">Uses the capture’s machine type and Windows version. Only Lenovo document requests leave this computer; the capture and serial number stay local.</p>
+          <p class="status-message" id="update-status" role="status" aria-live="polite"></p>
+          <div class="alert error" id="update-error" role="alert" hidden></div>
+          <div id="update-results" hidden></div>
+        </section>
         <div class="section-heading"><div><h3><span data-i18n="researchPackages">Research Lenovo packages</span></h3><p><span data-i18n="catalogDescription">The catalog request checks connectivity and lists packages offered for a machine type.</span></p></div></div>
-        <div class="alert info"><span data-i18n="catalogCaution">Catalog entries are not an update assessment for this device. This prototype does not yet check applicability, whether packages are current, or which components are installed.</span></div>
+        <div class="alert info"><span data-i18n="catalogCaution">Browse catalog packages separately from the evidence check above. A catalog entry alone does not establish that a package applies to this device.</span></div>
         <form id="catalog-form" class="catalog-form">
           <label><span data-i18n="machineType">Machine type</span><input id="machine-type" name="machineType" type="text" inputmode="text" placeholder="e.g. 21MM" data-i18n-placeholder="machinePlaceholder" maxlength="4" pattern="[A-Za-z0-9]{4}" required autocomplete="off" spellcheck="false"></label>
           <label><span data-i18n="os">Operating system</span><select id="catalog-os" name="os"><option value="Win11">Windows 11</option><option value="Win10">Windows 10</option></select></label>
@@ -124,7 +138,7 @@
         </section>
       </section>
     </div>
-    <footer class="page-footer"><span><span data-i18n="footer">LORE 2.0 · Technical preview</span></span><span><span data-i18n="footerScope">No automatic update comparison · No driver installation</span></span></footer>
+    <footer class="page-footer"><span><span data-i18n="footer">LORE 2.0 · Technical preview</span></span><span><span data-i18n="footerScope">BIOS, WLAN &amp; Bluetooth catalog check · No driver installation</span></span></footer>
   </main>
 
   <dialog id="source-dialog" aria-labelledby="source-title"><div class="dialog-heading"><div><p class="eyebrow" id="source-kind"><span data-i18n="originalSource">ORIGINAL SOURCE</span></p><h2 id="source-title"></h2></div><button class="icon-button" id="source-close" type="button" aria-label="Close source view" data-i18n-aria-label="closeSource">×</button></div><p class="subtle" id="source-detail"></p><pre id="source-text" tabindex="0"></pre></dialog>

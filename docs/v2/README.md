@@ -1,9 +1,11 @@
 # LORE 2.0 development
 
-Status: functional prototype under `prototype/`, with initial M1 inventory and
-M2 evidence comparison; broader milestone/platform acceptance remains partial.
+Status: functional prototype under `prototype/`, with initial M1 inventory,
+M2 evidence comparison and bounded M3 BIOS/wireless update evidence;
+broader milestone/platform acceptance remains partial.
 See [start instructions](RUNNING-PROTOTYPE.md),
-[comparison scope](COMPARISON-PROTOTYPE.md) and
+[comparison scope](COMPARISON-PROTOTYPE.md),
+[Lenovo check scope](UPDATE-PROTOTYPE.md) and
 [validation evidence](PLATFORM-SPIKE.md).
 
 LORE 2.0 will turn Windows diagnostic collections into a readable, comparable
@@ -89,9 +91,10 @@ download file's version describes every component in a package.
 
 ## Next work
 
-Exercise the initial two-capture comparison with representative collections.
-Extend hardware/driver identity and source coverage using the
-[data requirements](DATA-CONTRACT.md) before treating a name-aligned driver row
-as an established hardware match. Continue the remaining platform/network checks
+Exercise the two-capture comparison and BIOS/WLAN/Bluetooth check with
+representative collections. Extend observed hardware IDs and prerequisite
+evidence using the [data requirements](DATA-CONTRACT.md). The two-capture driver
+table still aligns names provisionally; the new update check uses the separate
+device/INF/radio evidence model. Continue the remaining platform/network checks
 in [the platform experiment](PLATFORM-SPIKE.md). Packaging, corporate compatibility
 and final presentation remain experimental.

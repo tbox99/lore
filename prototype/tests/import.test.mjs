@@ -64,6 +64,52 @@ test('malformed manifest and conflicting identity remain visible without hiding 
   assert.equal(conflict.device.mtm, '9999OTHER');
   assert.ok(conflict.warnings.some(row => row.kind === 'conflict'));
 });
+test('differing repeated QuickData fields preserve the preferred value and every conflicting source line', async () => {
+  for (const [field, label, first, other] of [
+    ['bios', 'BIOS', 'DEMOET10W (1.10)', 'DEMOET11W (1.11)'],
+    ['mtm', 'MTM', '21MMDEMO00', '9999OTHER'],
+    ['serial', 'SN', 'DEMO0001', 'DEMO0002'],
+    ['os', 'WIN OS', 'Microsoft Windows 11 Enterprise', 'Microsoft Windows 10 Enterprise'],
+    ['build', 'Build', '10.0.26100', '10.0.22631'],
+    ['ec', 'EC', '1.02', '1.03'],
+    ['meFirmware', 'ME FW', '18.0.0.1000', '18.0.0.1001'],
+  ]) {
+    const entries = demoEntries(), source = entries.find(([name]) => name.includes('-QuickData-'));
+    source[1] = `${label} : ${first}\n${label} : ${other}\n`;
+    const snapshot = await importCdat(new Blob([makeZip(entries)]));
+    assert.equal(snapshot.device[field], first, field);
+    const conflicts = snapshot.warnings.filter(row => row.kind === 'conflict' && row.messageDescriptor.key === 'warning.conflict' && row.messageDescriptor.params.field === field && row.source === source[0]);
+    assert.deepEqual(conflicts.map(row => row.line).sort(), [1, 2], field);
+    assert.equal(snapshot.texts[source[0]], source[1]);
+  }
+});
+test('differing repeated ComputerInfo fields remain conflicts even when QuickData supplies the displayed value', async () => {
+  for (const [field, label, first, other] of [
+    ['bios', 'BiosSMBIOSBIOSVersion', 'DEMOET10W (1.10)', 'DEMOET11W (1.11)'],
+    ['mtm', 'CsModel', '21MMDEMO00', '9999OTHER'],
+    ['serial', 'BiosSeralNumber', 'DEMO0001', 'DEMO0002'],
+    ['os', 'OsName', 'Microsoft Windows 11 Enterprise', 'Microsoft Windows 10 Enterprise'],
+    ['build', 'OsVersion', '10.0.26100', '10.0.22631'],
+    ['osArchitecture', 'OsArchitecture', '64-Bit', '32-Bit'],
+  ]) {
+    const entries = demoEntries(), source = entries.find(([name]) => name.includes('-ComputerInfo-'));
+    source[1] = `${label} : ${first}\n${label} : ${other}\n`;
+    const snapshot = await importCdat(new Blob([makeZip(entries)]));
+    assert.equal(snapshot.device[field], first, field);
+    const conflicts = snapshot.warnings.filter(row => row.kind === 'conflict' && row.messageDescriptor.params.field === field && row.source === source[0]);
+    assert.deepEqual(conflicts.map(row => row.line).sort(), [1, 2], field);
+  }
+});
+test('empty and identical field repetitions do not manufacture conflicts or hide a later usable value', async () => {
+  const entries = demoEntries(), quick = entries.find(([name]) => name.includes('-QuickData-'));
+  quick[1] = 'BIOS :\nBIOS : DEMOET10W (1.10)\nBIOS : DEMOET10W (1.10)\n';
+  const computer = entries.find(([name]) => name.includes('-ComputerInfo-'));
+  computer[1] = 'OsArchitecture :\nOsArchitecture : 64-Bit\nOsArchitecture : 64-Bit\n';
+  const snapshot = await importCdat(new Blob([makeZip(entries)]));
+  assert.equal(snapshot.device.bios, 'DEMOET10W (1.10)'); assert.equal(snapshot.sources.bios.line, 2);
+  assert.equal(snapshot.device.osArchitecture, '64-Bit'); assert.equal(snapshot.sources.osArchitecture.line, 2);
+  assert.equal(snapshot.warnings.filter(row => row.kind === 'conflict').length, 0);
+});
 test('long driver names with one separator still parse; nameless continuations stay unresolved', () => {
   const result = parseDrivers('DeviceName Version\n---------- -------\nA very long component name 2613.9.7.0\n     2:10.0,2:6.3\n', 'Drivers.log');
   assert.equal(result.drivers[0].version, '2613.9.7.0');

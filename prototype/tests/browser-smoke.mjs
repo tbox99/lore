@@ -121,6 +121,67 @@ async function comparisonCounts(expected) {
   }
 }
 
+// Synthetic current-device -> published INF -> store metadata -> radio-report
+// chain. The old display-only driver table cannot supply this identity alone.
+function updateFixture({ inventory = true, title = 'Update synthetic device' } = {}) {
+  const root = 'CDAT-Demo/';
+  const entries = demoEntries().filter(([name]) => !name.endsWith('/Driver3rdPartyOEMINF.log')).map(([name, original]) => {
+    const utf16 = Buffer.isBuffer(original) && original[0] === 255 && original[1] === 254;
+    let content = utf16 ? original.subarray(2).toString('utf16le') : String(original);
+    content = content.replaceAll('DEMOET10W (1.10)', 'N99ET10W (1.10)').replaceAll('24.50.0.4', '24.9.0.4')
+      .replace('ThinkPad Demo (synthetische Daten)', title);
+    if (name.includes('-ComputerInfo-')) content += '\r\nOsArchitecture : 64-bit\r\n';
+    return [name, utf16 ? Buffer.concat([Buffer.from([255, 254]), Buffer.from(content, 'utf16le')]) : content];
+  });
+  if (inventory) {
+    const wifiId = 'PCI\\VEN_1234&DEV_5678&SUBSYS_11112222\\DEMO';
+    const btId = 'USB\\VID_1234&PID_5678\\DEMO';
+    const pnpHeader = 'Status'.padEnd(10) + 'FriendlyName'.padEnd(40) + 'InstanceId\n'
+      + '------'.padEnd(10) + '------------'.padEnd(40) + '----------\n';
+    const pnpRow = (name, id) => 'OK'.padEnd(10) + name.padEnd(40) + id + '\n';
+    entries.push(
+      [root + 'Installed-HWD/InstalledHardwareList.log', pnpHeader + pnpRow('Demo Wi-Fi Adapter', wifiId) + pnpRow('Demo Bluetooth Adapter', btId)],
+      [root + 'Installed-HWD/DriversINFInstallDate.log', [
+        `Current Device ID is ${wifiId}`, 'Current INF file is C:\\Windows\\INF\\oem10.inf', 'Installation date is: synthetic',
+        `Current Device ID is ${btId}`, 'Current INF file is C:\\Windows\\INF\\oem11.inf', 'Installation date is: synthetic',
+      ].join('\n')],
+      [root + 'Installed-HWD/Driver3rdPartyOEMINF.log', 'Published Name | Original File Name | Inbox | Class Name | Provider Name | Date | Version\n'
+        + 'oem10.inf | netdemo.inf | No | net | Intel | 01.01.2026 | 24.9.0.4\n'
+        + 'oem11.inf | btdemo.inf | No | Bluetooth | Intel | 01.01.2026 | 24.40.10.3\n'],
+      [root + 'Network/WLANnetsh.log', 'Driver : Demo Wi-Fi Adapter\nProvider : Intel\nVersion : 24.9.0.4\nInf file : oem10.inf\n'],
+      [root + 'Network/BluetoothSystemReport.log', 'Device : Demo Bluetooth Adapter\nDriver : 24.40.10.3\n\n'
+        + pnpHeader + pnpRow('Demo Bluetooth Adapter', btId)],
+    );
+  }
+  return makeZip(entries);
+}
+const updateCatalog = '<packages>' + [
+  ['bios', 'BIOS UEFI'], ['wlan', 'Networking Wireless LAN'], ['bluetooth', 'Bluetooth and Modem'],
+].map(([kind, category]) => `<package><location>https://download.lenovo.com/pccbbs/mobiles/lore_update_${kind}.xml</location><category>${category}</category></package>`).join('') + '</packages>';
+const updateRadioIds = { wlan: 'PCI\\VEN_1234&amp;DEV_5678&amp;SUBSYS_11112222', bluetooth: 'USB\\VID_1234&amp;PID_5678' };
+function updatePackage(kind, { noReadme = false } = {}) {
+  const detection = kind === 'bios' ? '<_Bios><Level>N99ET11*</Level></_Bios>'
+    : `<_Driver><HardwareID>${updateRadioIds[kind]}</HardwareID><Version>${kind === 'wlan' ? '24.10.0.3' : '24.70.0.4'}^</Version></_Driver>`;
+  const match = kind === 'bios' ? '<_Bios><Level>N99ET10*</Level></_Bios>' : `<_PnPID>${updateRadioIds[kind]}</_PnPID>`;
+  const prerequisite = kind === 'wlan' ? '<_WindowsBuildVersion><Version>22621^</Version></_WindowsBuildVersion>'
+    : '<_Firmware><HardwareIDs>UEFI\\RES_{11111111-2222-3333-4444-555555555555}</HardwareIDs><Version>5^</Version></_Firmware>';
+  return `<Package id="lore-update-${kind}" name="Synthetic ${kind} package" version="9.8.7"><Title default="EN"><Desc id="EN">Synthetic ${kind} package</Desc></Title><ReleaseDate>2026-11-01</ReleaseDate><Dependencies><And><_OS><OS>WIN11</OS></_OS>${match}${prerequisite}</And></Dependencies><DetectInstall>${detection}</DetectInstall>${kind === 'bios' ? '' : `<DetectVersion type="Inf"><_PnPID>${updateRadioIds[kind]}</_PnPID></DetectVersion>`}${noReadme ? '' : `<Files><Readme default="EN"><File id="EN"><Name>lore_update_${kind}.txt</Name></File></Readme></Files>`}</Package>`;
+}
+function updateReadme(kind) {
+  return ['Support Models', 'ThinkPad Demo (Type 21MM)', '', 'Operating Systems', 'Windows 11', '', 'Version',
+    kind === 'bios' ? '1.11 (UEFI BIOS)' : kind === 'wlan' ? '24.10.0.3' : '24.70.0.4', '',
+    'Changes in This Release', 'Synthetic component correction.', '', 'Important Notice',
+    'Verify the separately reported prerequisite before installation.', '', 'Version Information',
+    'Historical model mention (Type 9999) is not current supported-model evidence.'].join('\n');
+}
+async function runUpdateCheck() {
+  await page.locator('#update-check').click();
+  await page.locator('#update-results').waitFor({ state: 'visible' });
+  await page.waitForFunction(() => !document.querySelector('#update-status').classList.contains('busy')
+    && !document.querySelector('#update-check').disabled);
+  assert.equal(await page.locator('#update-error').isVisible(), false);
+}
+
 try {
   const hostHealth = await waitForHost();
   pass('Actual platform host starts', JSON.stringify(hostHealth));
@@ -477,6 +538,163 @@ try {
   await page.screenshot({ path: path.join(artifacts, 'synthetic-mobile-source-extra-large.png'), fullPage: true });
   await page.keyboard.press('Escape');
   pass('Responsive extra-large layout has no page overflow', '384 px viewport; all five tabs and source dialog; tables may scroll internally');
+
+  // The bounded update check uses the real browser importer, metadata parser,
+  // readme extraction and assessment core, with only the HTTP envelope mocked.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.locator('#language-select').selectOption('en');
+  await page.locator('#font-size-select').selectOption('standard');
+  await page.unroute('**/api/lenovo?*');
+  let updateMode = 'normal', signalHeldUpdate, releaseHeldUpdate, heldUpdateDone;
+  const updatePaths = [];
+  await page.route('**/api/lenovo?*', async route => {
+    const query = new URL(route.request().url()).searchParams.get('path');
+    updatePaths.push(query);
+    assert.equal(route.request().headers()['x-lore-request'], '1');
+    let document;
+    const isCatalog = query === '/catalog/21MM_Win11.xml';
+    const match = query.match(/^\/pccbbs\/mobiles\/lore_update_(bios|wlan|bluetooth)\.(xml|txt)$/);
+    const held = updateMode === 'hold' && isCatalog;
+    if (held) {
+      signalHeldUpdate();
+      await new Promise(resolve => { releaseHeldUpdate = resolve; });
+    }
+    if (isCatalog) document = updateMode === 'catalog-failure' ? '<broken-catalog>' : updateCatalog;
+    else if (match) document = match[2] === 'txt' ? updateReadme(match[1])
+      : updateMode === 'partial' && match[1] === 'wlan' ? '<invalid-package>'
+      : updatePackage(match[1], { noReadme: updateMode === 'partial' && match[1] === 'bluetooth' });
+    else throw new Error(`Unexpected update mock path: ${query}`);
+    try {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: `https://download.lenovo.com${query}`, retrievedAt: '2026-11-11T12:00:00Z', text: document }) });
+    } catch (error) {
+      // Importing a new A deliberately aborts this held request. Chromium may
+      // discard its interception before the simulated late upstream responds.
+      if (!held) throw error;
+    } finally { if (held) heldUpdateDone(); }
+  });
+  await page.locator('#archive-input').setInputFiles({ name: 'update-evidence.zip', mimeType: 'application/zip', buffer: updateFixture() });
+  await page.waitForFunction(() => document.querySelector('#capture-title').textContent === 'Update synthetic device'
+    && !document.querySelector('#app-status').classList.contains('busy'));
+  await page.locator('#capture-compare').click();
+  assert.equal(await page.locator('#tab-comparison').getAttribute('aria-selected'), 'true');
+  await page.locator('#capture-updates').click();
+  assert.equal(await page.locator('#tab-lenovo').getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#update-check').evaluate(button => document.activeElement === button), true);
+  assert.deepEqual(updatePaths, [], 'Import and direct navigation must not contact Lenovo');
+  await runUpdateCheck();
+  assert.equal(await page.locator('#update-results .update-card').count(), 3);
+  const updateRow = kind => page.locator(`#update-results .update-card[data-kind="${kind}"]`);
+  const biosUpdate = updateRow('bios'), wlanUpdate = updateRow('wlan'), btUpdate = updateRow('bluetooth');
+  for (const card of [biosUpdate, wlanUpdate, btUpdate]) {
+    assert.equal(await card.getAttribute('data-version-relation'), 'newer');
+    assert.equal(await card.getAttribute('data-applicability'), 'unknown');
+    assert.equal(await card.getAttribute('data-status'), 'unresolved');
+  }
+  assert.match(await biosUpdate.locator('[data-update-field="installed"]').textContent(), /1\.10/);
+  assert.match(await biosUpdate.locator('[data-update-field="offered"]').textContent(), /1\.11/);
+  assert.match(await wlanUpdate.locator('[data-update-field="installed"]').textContent(), /24\.9\.0\.4/);
+  assert.match(await wlanUpdate.locator('[data-update-field="offered"]').textContent(), /24\.10\.0\.3/);
+  assert.doesNotMatch(await page.locator('#update-results [data-update-field="offered"]').allTextContents().then(values => values.join(' ')), /9\.8\.7/);
+  assert.match(await btUpdate.locator('.update-reasons').textContent(), /prerequisites|confirmed/i);
+  assert.equal(updatePaths.filter(value => value.startsWith('/catalog/')).length, 1);
+  assert.ok(updatePaths.every(value => !value.includes('DEMO0001')), 'Serial number must not be requested');
+  pass('Explicit Lenovo check compares component versions and keeps applicability uncertainty', 'Numeric 24.9 < 24.10, BIOS readme version separate from package 9.8.7; derived hardware IDs and unsupported prerequisites stay unresolved');
+
+  const beforeUpdateSourceRequests = updatePaths.length;
+  await wlanUpdate.locator('.update-sources button[data-source-path$="DriversINFInstallDate.log"]').first().click();
+  assert.match(await page.locator('#source-title').textContent(), /Capture A/);
+  assert.match(await page.locator('#source-text').textContent(), /Current INF file is C:\\Windows\\INF\\oem10\.inf/);
+  await page.keyboard.press('Escape');
+  await biosUpdate.locator('[data-update-readme]').click();
+  assert.match(await page.locator('#source-text').textContent(), /1\.11 \(UEFI BIOS\)/);
+  assert.match(await page.locator('#source-detail').textContent(), /lore_update_bios\.txt/);
+  await page.keyboard.press('Escape');
+  await biosUpdate.locator('.update-readme-sections summary').click();
+  assert.match(await biosUpdate.locator('.update-readme-sections').textContent(), /Verify the separately reported prerequisite/);
+  assert.equal(updatePaths.length, beforeUpdateSourceRequests, 'Source/readme views use already retrieved evidence');
+  await noPageOverflow('Desktop Lenovo assessment');
+  await page.screenshot({ path: path.join(artifacts, 'synthetic-updates.png'), fullPage: true });
+  pass('Update results retain original CDAT binding and extracted readme evidence', 'Capture A source, original readme, retrieval context and prerequisite section are accessible locally');
+
+  const beforeUpdatePreferenceRequests = pageRequests.length;
+  await page.locator('#language-select').selectOption('de');
+  await page.locator('#font-size-select').selectOption('extra-large');
+  assert.equal(await biosUpdate.locator('.update-readme-sections').evaluate(details => details.open), true);
+  assert.equal(await wlanUpdate.getAttribute('data-version-relation'), 'newer');
+  assert.match(await wlanUpdate.locator('[data-update-field="offered"]').textContent(), /24\.10\.0\.3/);
+  await page.setViewportSize({ width: 384, height: 900 });
+  await noPageOverflow('384 px, extra-large Lenovo assessment');
+  await page.screenshot({ path: path.join(artifacts, 'synthetic-updates-mobile-de-extra-large.png'), fullPage: true });
+  await page.locator('#language-select').selectOption('en');
+  await page.locator('#font-size-select').selectOption('standard');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  assert.equal(pageRequests.length, beforeUpdatePreferenceRequests, 'Update translations and sizing must not refetch documents');
+  assert.equal(await biosUpdate.getAttribute('data-applicability'), 'unknown');
+  pass('Update evidence survives translation and text scaling without requests', 'Expanded readme remains open; narrow results have no page overflow');
+
+  updateMode = 'partial';
+  await runUpdateCheck();
+  assert.equal(await wlanUpdate.getAttribute('data-version-relation'), 'unknown');
+  assert.equal(await wlanUpdate.getAttribute('data-status'), 'unresolved');
+  assert.equal(await page.locator('#update-results .alert.warning a[href$="lore_update_wlan.xml"]').count(), 1);
+  assert.equal(await btUpdate.getAttribute('data-applicability'), 'unknown');
+  assert.match(await btUpdate.locator('.update-reasons').textContent(), /readme/i);
+  assert.equal(await biosUpdate.getAttribute('data-version-relation'), 'newer');
+  updateMode = 'catalog-failure';
+  await page.locator('#update-check').click();
+  await page.locator('#update-error').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#update-results').isVisible(), false);
+  assert.equal(await page.locator('#driver-tab-count').textContent(), '3');
+  updateMode = 'normal';
+  await runUpdateCheck();
+  assert.equal(await wlanUpdate.getAttribute('data-version-relation'), 'newer');
+  pass('Malformed package/catalog metadata and missing readmes remain explicit and recoverable', 'A failed package leaves other evidence visible; a failed catalog clears stale results; retry preserves the capture');
+
+  // A second capture must not change which primary snapshot is assessed.
+  const beforeSecondaryRequests = updatePaths.length;
+  await page.locator('#capture-compare').click();
+  await loadComparison(comparisonFixture({ wifi: '88.88.88.88' }), 'unrelated-secondary.zip');
+  await page.locator('#capture-updates').click();
+  assert.match(await wlanUpdate.locator('[data-update-field="installed"]').textContent(), /24\.9\.0\.4/);
+  assert.equal(updatePaths.length, beforeSecondaryRequests);
+  await page.locator('#machine-type').fill('9999');
+  assert.equal(await page.locator('#update-results').isVisible(), false);
+  await page.locator('#machine-type').fill('21MM');
+  updateMode = 'hold';
+  const heldRequest = new Promise(resolve => { signalHeldUpdate = resolve; });
+  const heldDone = new Promise(resolve => { heldUpdateDone = resolve; });
+  await page.locator('#update-check').click();
+  await heldRequest;
+  await page.locator('#archive-input').setInputFiles({ name: 'new-primary.zip', mimeType: 'application/zip', buffer: updateFixture({ title: 'New primary synthetic device' }) });
+  await page.waitForFunction(() => document.querySelector('#capture-title').textContent === 'New primary synthetic device'
+    && !document.querySelector('#app-status').classList.contains('busy'));
+  updateMode = 'normal';
+  releaseHeldUpdate();
+  await heldDone;
+  await page.waitForTimeout(250);
+  assert.equal(await page.locator('#update-results').isVisible(), false);
+  assert.equal(await page.locator('#update-error').isVisible(), false);
+  await page.locator('#capture-updates').click();
+  assert.equal(await page.locator('#update-check').isEnabled(), true);
+  await runUpdateCheck();
+  assert.match(await wlanUpdate.locator('[data-update-field="installed"]').textContent(), /24\.9\.0\.4/);
+  pass('Update state stays bound to A and rejects late responses after replacement', 'B causes no requests or reassessment; edited query and new A clear prior results; a new check succeeds');
+
+  await page.locator('#archive-input').setInputFiles({ name: 'missing-radio-evidence.zip', mimeType: 'application/zip', buffer: updateFixture({ inventory: false, title: 'Missing radio identity synthetic device' }) });
+  await page.waitForFunction(() => document.querySelector('#capture-title').textContent === 'Missing radio identity synthetic device'
+    && !document.querySelector('#app-status').classList.contains('busy'));
+  await page.locator('#capture-updates').click();
+  await runUpdateCheck();
+  for (const card of [wlanUpdate, btUpdate]) {
+    assert.equal(await card.getAttribute('data-version-relation'), 'unknown');
+    assert.equal(await card.getAttribute('data-applicability'), 'unknown');
+    assert.equal(await card.getAttribute('data-status'), 'unresolved');
+  }
+  assert.match(await page.locator('#driver-table').textContent(), /24\.9\.0\.4/);
+  pass('Friendly names without radio binding cannot produce update conclusions', 'Display-only driver versions remain available while update identity is unresolved');
+
+  await page.locator('#language-select').selectOption('de');
+  await page.locator('#font-size-select').selectOption('extra-large');
 
   await page.reload({ waitUntil: 'networkidle' });
   await preferences(page, 'de', 'extra-large');
