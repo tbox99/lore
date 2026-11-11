@@ -42,15 +42,34 @@ jobs:
           sh -n prototype/start-linux.sh
 
   windows-powershell-host:
-    name: Windows PowerShell 5.1 transport
+    name: Windows PowerShell 5.1 transport and native browser
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: Launch Windows PowerShell host and verify local HTTP behavior
         # The test calls powershell.exe -NoProfile -File, never an execution-policy
         # override. Corporate Windows/browser acceptance remains a separate check.
         run: python -m unittest discover -s prototype/tests -p test_windows_host.py -v
+      - name: Install developer-only browser test dependency
+        run: npm ci
+        working-directory: prototype
+      - name: Install test Chromium
+        run: npx playwright install chromium
+        working-directory: prototype
+      - name: Native browser acceptance with sandbox enabled
+        run: node tests/browser-smoke.mjs
+        working-directory: prototype
+      - name: Preserve synthetic browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lore-v2-windows-browser-evidence
+          path: prototype/test-results/
+          if-no-files-found: ignore
