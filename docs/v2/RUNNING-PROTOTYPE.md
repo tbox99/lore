@@ -137,7 +137,7 @@ results are written to ignored `prototype/test-results/`. No browser protection
 should be disabled to make a failed local launch pass.
 
 The separate prototype CI uses these checks. Windows PowerShell 5.1 and native
-Windows Chromium passed in [this run](https://github.com/tbox99/lore/actions/runs/43019677395).
+Windows Chromium passed in [this run](https://github.com/tbox99/lore/actions/runs/43021835497).
 The owner has demonstrated Windows startup/import; corporate proxy access and full
 manual acceptance remain separate checks. Existing root npm/Tauri commands
 still belong to LORE 1.x and do not test the new prototype.

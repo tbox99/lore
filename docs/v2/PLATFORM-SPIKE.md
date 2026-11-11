@@ -25,10 +25,11 @@ corporate compatibility. The UI/transport arrangement remains experimental.
 
 | Check | Result | Evidence / limitation |
 | --- | --- | --- |
-| JavaScript importer, ZIP and Lenovo transport unit tests | PASS | 21 tests on the OpenCode Node 24.18.1 runtime, including localized messages with unchanged evidence |
+| JavaScript importer, ZIP, comparison and Lenovo transport unit tests | PASS | 33 tests on the OpenCode Node 24.18.1 runtime, including 12 comparison tests and localized messages with unchanged evidence |
 | Python loopback transport tests | PASS | 13 tests on OpenCode Python 3.14.4 |
 | Linux HTTP start and asset delivery | PASS | Health, HTML, ES module, ZIP fixture and MIME types returned correctly |
 | Real supplied CDAT import, shared core under Node on Linux | PASS, partial source coverage | 170 files indexed, 809,756,540 bytes declared expanded; only 102,848 archive bytes read; 10 overview fields and 244 driver rows recovered. Six driver-table lines remain unresolved and are flagged. No customer identifiers committed. |
+| Real supplied CDAT compared with itself, shared core under Node | PASS, matching uncertainty retained | Zero observed differences or one-sided records; 129 equal results and 26 unresolved results: 25 duplicate driver-name groups plus one incomplete-inventory summary. This is a core check, not native-browser evidence. |
 | CDAT collection failures | PASS | COMException, NullArray and unavailable-event-log errors are reported as incomplete collection |
 | Mixed partial capture sources | PASS | Different capture roots rejected; regression included |
 | Lenovo catalog/package/readme from OpenCode | PASS | Ordinary HTTPS requests to the official 21MM Win11 catalog and n47uj13w metadata/readme returned content with source URL and UTC retrieval time |
@@ -38,12 +39,12 @@ corporate compatibility. The UI/transport arrangement remains experimental.
 | Windows PowerShell 5.1 host on GitHub Windows runner | PASS | Six HTTP contract tests start the real host without an execution-policy override and verify socket release after termination. |
 | Owner's Windows UI startup and real archive import | PASS, user-observed | Screenshot supplied on 2026-11-11 shows 170 files, 244 driver rows and four source-quality notices. Exact browser, elevation and proxy access were not established by this evidence. Screenshot and device identifiers are not committed. |
 | Corporate Windows proxy access and complete manual interaction | NOT RUN | Requires the remaining checks in the intended corporate environment. |
-| Native Windows Chromium browser with sandbox enabled | PASS | Seventeen recorded checks: real import, keyboard/source-dialog behavior, recovery and async guards, synthetic Lenovo XML/readme rendering, English default in a German browser, live translation without data loss or network requests, 18/20/22 px text scaling, persistence and invalid/blocked storage, responsive layout, no page errors/external requests and host cleanup. |
-| Windows readable-layout validation | PASS | Screenshots inspected at 1440 px in English/standard and German/extra-large, plus 384 px German/extra-large. Native checks verify internal table scrolling without page overflow, source-dialog scaling and keyboard-only skip-link visibility. |
+| Native Windows Chromium browser with sandbox enabled | PASS | 23 recorded checks: import, keyboard/source-dialog behavior, recovery and async guards, synthetic Lenovo XML/readme rendering, English default in a German browser, live translation without data loss or network requests, 18/20/22 px text scaling, persistence and invalid/blocked storage, responsive layout, no page errors/external requests and host cleanup. Six added comparison checks cover identical/changed inputs, correct A/B sources, filters/preferences, failed B recovery, incomplete/ambiguous data and invalidation of an in-flight B import when A changes. |
+| Windows readable-layout validation | PASS, provisional presentation | Previously inspected overview screenshots at 1440 px in English/standard and German/extra-large, plus 384 px German/extra-large. Comparison screenshots additionally inspected at 1440 px English/standard and 384 px German/extra-large. Native checks verify internal table scrolling without page overflow, source-dialog scaling and keyboard-only skip-link visibility. Narrow comparison tables require horizontal scrolling; final presentation remains open. |
 | Linux native browser interaction | NOT RUN | Host/core tests and DOM emulation pass, but neither establishes actual Linux browser behavior. |
 
-Verified code revision: `71651274e6a658e1c674925c9baa33f15bcd205d`.
-[Successful CI run and synthetic browser evidence](https://github.com/tbox99/lore/actions/runs/43019677395).
+Verified code revision: `9978f6571a07b47f980d9414432544edbda66041`.
+[Successful CI run and synthetic browser evidence](https://github.com/tbox99/lore/actions/runs/43021835497).
 The native browser test uses controlled Lenovo responses; the separate live
 Lenovo checks above ran on OpenCode. Corporate Windows policy/proxy behavior
 still requires the user's environment.
