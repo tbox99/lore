@@ -42,11 +42,11 @@ corporate compatibility. The UI/transport arrangement remains experimental.
 | Owner's Windows UI startup and real archive import | PASS, user-observed | Screenshot supplied on 2026-11-11 shows 170 files, 244 driver rows and four source-quality notices. Exact browser, elevation and proxy access were not established by this evidence. Screenshot and device identifiers are not committed. |
 | Corporate Windows proxy access and complete manual interaction | NOT RUN | Requires the remaining checks in the intended corporate environment. |
 | Native Windows Chromium browser with sandbox enabled | PASS | 29 recorded checks: previous import/comparison/preferences checks plus six new Lenovo-check groups covering explicit requests and direct navigation, component versions versus package versions, original CDAT/readme evidence, locale/scale retention, malformed metadata/missing-readme recovery, A/B binding and stale-result cancellation, and missing radio identity. No page/console errors or unexpected external requests; host cleanup passed. Lenovo responses are controlled synthetic fixtures. |
-| Windows readable-layout validation | PASS, provisional presentation | Previously inspected overview/comparison views at desktop and narrow widths. New update-result screenshots inspected at 1440 px English/standard and 384 px German/extra-large, including direct capture actions and expanded readme sections. Native checks verify no page overflow and preference scaling. Narrow comparison tables require horizontal scrolling; lengthy evidence lists and final presentation remain open. |
+| Windows readable-layout validation | PASS, provisional presentation | Update cards now emphasize Installed version / Available Lenovo version and the version result, with compatibility visible separately. Reasons, grouped source files and package evidence are collapsed under Details. Screenshots inspected at 1440 px English/standard and 384 px German/extra-large. Native checks verify exact EN/DE labels, keyboard disclosure, source access, open-state retention across language changes and no page overflow. Narrow comparison tables still require horizontal scrolling; final presentation remains open. |
 | Linux native browser interaction | NOT RUN | Host/core tests and DOM emulation pass, but neither establishes actual Linux browser behavior. |
 
-Verified code revision: `7b1c1df431954005421a44b062e779013ba47751`.
-[Successful CI run and synthetic browser evidence](https://github.com/tbox99/lore/actions/runs/43026095304).
+Verified code revision: `ce866f0631b1bd51a9702899c05625b2d27e5998`.
+[Successful CI run and synthetic browser evidence](https://github.com/tbox99/lore/actions/runs/43028082734).
 The native browser test uses controlled Lenovo responses; the separate live
 Lenovo checks above ran on OpenCode. Corporate Windows policy/proxy behavior
 still requires the user's environment.

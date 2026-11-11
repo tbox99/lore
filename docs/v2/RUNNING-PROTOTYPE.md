@@ -71,9 +71,10 @@ in the browser. See [comparison scope and limitations](COMPARISON-PROTOTYPE.md).
 ## Check BIOS, WLAN and Bluetooth
 
 After opening capture A, select **Lenovo update check** below its header, then
-**Check Lenovo updates**. Review the installed/offered component versions and
-the separate prerequisite assessment. Expand the readme section and follow
-the original sources for details. Unmatched hardware, missing data and failed
+**Check Lenovo updates**. Compare **Installed version** and **Available Lenovo
+version**, then review the visible compatibility note. Open **Details** for
+explanations, source files and readme highlights, or **Readme** for the original
+text. Unmatched hardware, missing data and failed
 requests remain explicit. The check uses capture A's machine type and OS;
 capture B does not change it. See [scope and limitations](UPDATE-PROTOTYPE.md).
 
@@ -148,7 +149,7 @@ results are written to ignored `prototype/test-results/`. No browser protection
 should be disabled to make a failed local launch pass.
 
 The separate prototype CI uses these checks. Windows PowerShell 5.1 and native
-Windows Chromium passed in [this run](https://github.com/tbox99/lore/actions/runs/43026095304).
+Windows Chromium passed in [this run](https://github.com/tbox99/lore/actions/runs/43028082734).
 The owner has demonstrated Windows startup/import; corporate proxy access and full
 manual acceptance remain separate checks. Existing root npm/Tauri commands
 still belong to LORE 1.x and do not test the new prototype.
