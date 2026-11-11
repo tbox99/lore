@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>LORE 2.0 · Geräteanalyse</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Zum Arbeitsbereich</a>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">L</span><span>LORE <span class="brand-version">2.0</span></span></div>
+    <div class="header-note"><span class="status-dot" aria-hidden="true"></span>Lokal auf deinem Rechner</div>
+    <span class="preview-badge">Technischer Prototyp</span>
+  </header>
+
+  <main id="workspace">
+    <section class="intro" aria-labelledby="page-title">
+      <div><p class="eyebrow">LENOVO GERÄTEANALYSE</p><h1 id="page-title">Aus Daten wird Überblick.</h1><p class="intro-copy">CDAT-Aufnahme öffnen, Geräteinformationen einsehen und Lenovo-Pakete recherchieren.</p></div>
+      <p class="milestone"><span>M0</span>Import &amp; Verbindung prüfen</p>
+    </section>
+
+    <section class="import-zone" id="dropzone" aria-labelledby="import-title">
+      <div class="import-icon" aria-hidden="true">↥</div>
+      <div class="import-description"><h2 id="import-title">CDAT-ZIP hier ablegen</h2><p>Die Aufnahme wird direkt im Browser verarbeitet.</p></div>
+      <div class="import-actions"><label class="button primary file-button" for="archive-input">ZIP auswählen<input id="archive-input" type="file" accept=".zip,application/zip"></label><button class="button secondary" id="demo-button" type="button">Beispiel laden</button></div>
+    </section>
+    <p class="status-message" id="app-status" role="status" aria-live="polite">Bereit. Eine CDAT-Datei oder das synthetische Beispiel auswählen.</p>
+    <div class="alert error" id="app-error" role="alert" hidden></div>
+    <div class="alert warning" id="browser-warning" role="alert" hidden></div>
+
+    <div class="workspace-card" id="workspace-card" aria-busy="false">
+      <div class="capture-bar"><div><span class="caption-label">AKTUELLE AUFNAHME</span><h2 id="capture-title">Noch keine Aufnahme geöffnet</h2><p id="capture-meta">Ein ZIP genügt für den ersten Überblick.</p></div><span class="capture-state" id="capture-state">Bereit</span></div>
+      <div class="tablist" role="tablist" aria-label="Analysebereiche">
+        <button class="tab" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="panel-overview" tabindex="0" data-tab="overview">Übersicht</button>
+        <button class="tab" id="tab-drivers" type="button" role="tab" aria-selected="false" aria-controls="panel-drivers" tabindex="-1" data-tab="drivers">Treiber <span class="tab-count" id="driver-tab-count">0</span></button>
+        <button class="tab" id="tab-files" type="button" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-tab="files">Dateien <span class="tab-count" id="file-tab-count">0</span></button>
+        <button class="tab" id="tab-lenovo" type="button" role="tab" aria-selected="false" aria-controls="panel-lenovo" tabindex="-1" data-tab="lenovo">Lenovo-Katalog</button>
+      </div>
+
+      <section class="tab-panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
+        <div id="overview-empty" class="empty-state"><div class="empty-glyph" aria-hidden="true">▤</div><h3>Deine Geräteaufnahme an einem Ort.</h3><p>Nach dem Import erscheinen hier Modell, BIOS, Treiberversionen und Hinweise zur Vollständigkeit.</p><p class="subtle">Mit „Beispiel laden“ lässt sich die Ansicht ohne echte Gerätedaten ausprobieren.</p></div>
+        <div id="overview-content" hidden>
+          <div class="section-heading"><div><h3>Gerät &amp; Plattform</h3><p>Werte aus der Aufnahme. Die Quellen lassen sich direkt öffnen.</p></div></div>
+          <dl class="device-grid" id="device-grid"></dl>
+          <div class="overview-columns">
+            <section class="inset-section"><div class="section-heading"><div><h3>Datenabdeckung</h3><p>Welche Teile der Aufnahme ausgewertet wurden.</p></div></div><ul class="coverage-list" id="coverage-list"></ul></section>
+            <section class="inset-section"><div class="section-heading"><div><h3>Hinweise zur Aufnahme</h3><p>Erfassungsfehler sind keine bestandenen Prüfungen.</p></div><span class="count-badge" id="warning-count">0</span></div><ul class="warning-list" id="warning-list"></ul></section>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="panel-drivers" role="tabpanel" aria-labelledby="tab-drivers" tabindex="0" hidden>
+        <div class="section-heading"><div><h3>Gemeldete Treiberversionen</h3><p>Aus <code>Installed-HWD/Drivers.log</code>. Die Zuordnung zu Lenovo-Paketen folgt später.</p></div><span class="result-count" id="driver-result-count">0 Einträge</span></div>
+        <label class="search-field"><span class="visually-hidden">Treiber nach Gerätename oder Version filtern</span><span aria-hidden="true">⌕</span><input id="driver-search" type="search" placeholder="Gerätename oder Version suchen …" autocomplete="off"></label>
+        <div class="table-wrap" tabindex="0" aria-label="Treibertabelle"><table><thead><tr><th scope="col">Gerät / Komponente</th><th scope="col">Gemeldete Version</th><th scope="col">Quelle</th></tr></thead><tbody id="driver-table"></tbody></table></div>
+        <p class="table-empty" id="drivers-empty">Zuerst eine CDAT-Aufnahme öffnen.</p>
+        <p class="footnote">Alte Pakete im Driver Store werden hier nicht als verwendete Treiber aufgeführt. Ein Eintrag allein bestätigt noch keine vollständige Hardwarezuordnung.</p>
+      </section>
+
+      <section class="tab-panel" id="panel-files" role="tabpanel" aria-labelledby="tab-files" tabindex="0" hidden>
+        <div class="section-heading"><div><h3>Dateien in der Aufnahme</h3><p>Archivübersicht ohne vollständiges Entpacken. Ausgewertete Textquellen sind anklickbar.</p></div><span class="result-count" id="file-result-count">0 Dateien</span></div>
+        <label class="search-field"><span class="visually-hidden">Archivdateien nach Pfad filtern</span><span aria-hidden="true">⌕</span><input id="file-search" type="search" placeholder="Dateiname oder Verzeichnis suchen …" autocomplete="off"></label>
+        <div class="table-wrap" tabindex="0" aria-label="Dateitabelle"><table><thead><tr><th scope="col">Datei im Archiv</th><th scope="col" class="numeric">Entpackte Größe</th><th scope="col">Verarbeitung</th></tr></thead><tbody id="file-table"></tbody></table></div>
+        <p class="table-empty" id="files-empty">Zuerst eine CDAT-Aufnahme öffnen.</p>
+      </section>
+
+      <section class="tab-panel" id="panel-lenovo" role="tabpanel" aria-labelledby="tab-lenovo" tabindex="0" hidden>
+        <div class="section-heading"><div><h3>Lenovo-Pakete recherchieren</h3><p>Der Katalogzugriff prüft die Verbindung und zeigt angebotene Pakete für einen Maschinen-Typ.</p></div></div>
+        <div class="alert info">Katalogeinträge sind noch kein Update-Ergebnis für dieses Gerät. Anwendbarkeit, tatsächliche Aktualität und installierte Komponenten werden in diesem Prototyp nicht abgeglichen.</div>
+        <form id="catalog-form" class="catalog-form">
+          <label>Maschinen-Typ<input id="machine-type" name="machineType" type="text" inputmode="text" placeholder="z. B. 21MM" maxlength="4" pattern="[A-Za-z0-9]{4}" required autocomplete="off" spellcheck="false"></label>
+          <label>Betriebssystem<select id="catalog-os" name="os"><option value="Win11">Windows 11</option><option value="Win10">Windows 10</option></select></label>
+          <button class="button primary" id="catalog-button" type="submit">Katalog abrufen <span aria-hidden="true">↗</span></button>
+        </form>
+        <p class="footnote">Für diesen Abruf werden nur Maschinen-Typ und gewähltes Betriebssystem verwendet. Das CDAT-Archiv und die Seriennummer werden nicht übertragen.</p>
+        <p class="status-message" id="catalog-status" role="status" aria-live="polite">Noch kein Katalog abgerufen.</p>
+        <div class="alert error" id="catalog-error" role="alert" hidden></div>
+        <div id="catalog-content" hidden>
+          <div class="catalog-meta" id="catalog-meta"></div>
+          <label class="search-field"><span class="visually-hidden">Katalogpakete nach Kategorie oder Namen filtern</span><span aria-hidden="true">⌕</span><input id="catalog-search" type="search" placeholder="Kategorie oder Paketname suchen …" autocomplete="off"></label>
+          <div class="table-wrap" tabindex="0" aria-label="Lenovo-Katalog"><table><thead><tr><th scope="col">Paket</th><th scope="col">Kategorie</th><th scope="col">Details</th></tr></thead><tbody id="catalog-table"></tbody></table></div>
+          <p class="table-empty" id="catalog-empty" hidden>Keine Pakete passen zum Filter.</p>
+        </div>
+        <section class="package-detail" id="package-detail" aria-labelledby="package-title" hidden>
+          <p class="eyebrow">PAKETMETADATEN</p><h3 id="package-title"></h3><dl class="package-grid" id="package-fields"></dl><p id="package-description"></p><p id="package-notes" class="subtle"></p><div class="package-links" id="package-links"></div><p class="status-message" id="readme-status" role="status" aria-live="polite"></p>
+        </section>
+      </section>
+    </div>
+    <footer class="page-footer"><span>LORE 2.0 · Technische Erprobung</span><span>Kein automatischer Update-Abgleich · Keine Installation von Treibern</span></footer>
+  </main>
+
+  <dialog id="source-dialog" aria-labelledby="source-title"><div class="dialog-heading"><div><p class="eyebrow" id="source-kind">ORIGINALQUELLE</p><h2 id="source-title"></h2></div><button class="icon-button" id="source-close" type="button" aria-label="Quellansicht schließen">×</button></div><p class="subtle" id="source-detail"></p><pre id="source-text" tabindex="0"></pre></dialog>
+  <noscript><p class="alert error">Für die lokale Auswertung muss JavaScript im Browser aktiviert sein.</p></noscript>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>

@@ -1,7 +1,8 @@
 # LORE — Lenovo Online Research & Equipment
 
-> **LORE 2.0 preparation branch:** See [the v2 project plan](docs/v2/README.md).
-> No v2 application is implemented yet. The instructions below describe LORE 1.x.
+> **LORE 2.0 prototype:** [Start the M0 prototype](docs/v2/RUNNING-PROTOTYPE.md) or
+> read [the v2 project plan](docs/v2/README.md). Platform validation is in progress.
+> The remaining instructions below describe LORE 1.x.
 
 A cross-platform desktop application for querying Lenovo Support APIs — device identity, driver listings, and warranty status — by serial number or MTM prefix.
 

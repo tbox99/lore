@@ -1,0 +1,56 @@
+name: LORE v2 prototype
+
+on:
+  push:
+    branches: [lore-v2]
+    paths:
+      - 'prototype/**'
+      - '.github/workflows/prototype-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'prototype/**'
+      - '.github/workflows/prototype-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lore-prototype-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-core-and-transport:
+    name: Shared core and Linux transport
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Shared JavaScript core tests
+        run: node --test prototype/tests/*.test.mjs
+      - name: Python transport tests
+        run: python -m unittest discover -s prototype/tests -p test_server.py -v
+      - name: Check launcher syntax
+        run: |
+          python -m py_compile prototype/serve.py
+          sh -n prototype/start-linux.sh
+
+  windows-powershell-host:
+    name: Windows PowerShell 5.1 transport
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Launch Windows PowerShell host and verify local HTTP behavior
+        # The test calls powershell.exe -NoProfile -File, never an execution-policy
+        # override. Corporate Windows/browser acceptance remains a separate check.
+        run: python -m unittest discover -s prototype/tests -p test_windows_host.py -v

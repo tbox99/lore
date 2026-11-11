@@ -1,84 +1,70 @@
 # M0: platform experiment
 
-Status: NOT RUN. Preparation and environment inventory are complete;
-application launch, ZIP import and Lenovo connectivity have not been tested
-as a v2 application.
+Status: IMPLEMENTED, platform acceptance PARTIAL. Evidence recorded 2026-11-11.
 
-## Question to answer
+## Implemented candidate
 
-Which execution and distribution approach can run the same analysis application
-on corporate Windows and Linux with an acceptable start-up experience?
+- One dependency-free browser JavaScript core for bounded ZIP reading, CDAT
+  parsing and Lenovo XML/readme interpretation.
+- Windows: existing Windows PowerShell 5.1 starts a loopback TCP HTTP transport.
+  No execution-policy override, firewall change or additional runtime install.
+- Linux: Python 3.10+ standard-library loopback HTTP transport.
+- Both hosts serve the same web assets and constrained Lenovo metadata endpoint.
+  They contain no CDAT analysis. Archives are selected/read inside the browser.
+- No hosted service, archive upload, automatic installation or full update verdict.
+- Modern browser support for DecompressionStream('deflate-raw') is feature-tested;
+  unsupported clients receive an explicit notice.
 
-A local browser UI is the current candidate. The language, backend requirement,
-runtime distribution and packaging remain open. Neither a rewrite nor a browser
-UI by itself resolves executable restrictions, proxy requirements or runtime
-availability.
+This choice tests the working assumption that corporate Windows should need no
+additional runtime installation. That assumption has not been confirmed by the
+owner or a successful corporate Windows run. The UI/transport arrangement can
+still change based on that test.
 
-## Development environment observed on 2026-11-11
+## Validation evidence
 
-| Item | Observation |
-| --- | --- |
-| Repository baseline | `e6226db50d05110a3cffa9578c844f99d585df7c`; existing main worktree clean |
-| Host | OpenCode development machine, Linux x86_64 |
-| Git | 2.53.0 |
-| Node.js / npm | 24.18.1 / 11.16.0 |
-| Python | 3.14.4 |
-| Firefox | Executable found; interactive launch not tested |
-| PowerShell | Not found on the MCP session PATH |
-| Rust / Cargo | Not found on the MCP session PATH |
-| GitHub | Fetch from the existing origin succeeded |
-| Corporate Windows | Not accessible through this development-host session |
-
-These are environment observations, not chosen application dependencies.
-No runtime installation is required for the documentation preparation.
-
-## Small experiment
-
-1. Describe each candidate's runtime, normal user permissions and launch method.
-   Avoid choosing it solely because the development machine already has it.
-2. Start a minimal local UI and identify where computation runs.
-3. Select a synthetic ZIP, enumerate it and read a small metadata file.
-4. Exercise a controlled private representative CDAT archive locally:
-   read the directory and metadata without loading the whole expanded archive.
-5. Perform ordinary Lenovo product/package/readme retrieval. Record the URL,
-   response/result, retrieval time and any proxy/session requirements.
-6. Repeat on corporate Windows and Linux. Record launch, import, networking and
-   shutdown separately; a successful server-side request on Linux is not proof
-   that browser requests on Windows will work.
-7. Record the decision and tradeoffs before building the main application.
-
-If the browser is the HTTP client, test cross-origin behavior explicitly.
-If a local backend is needed, document its listener scope and shutdown behavior.
-Do not weaken corporate execution policy, certificate validation or browser
-protections to make an experiment pass.
-
-## Acceptance matrix
-
-| Check | Corporate Windows | Linux |
+| Check | Result | Evidence / limitation |
 | --- | --- | --- |
-| Runtime available / accepted launch method | NOT RUN | NOT RUN |
-| UI starts as normal user | NOT RUN | NOT RUN |
-| Synthetic ZIP metadata import | NOT RUN | NOT RUN |
-| Representative CDAT metadata import | NOT RUN | NOT RUN |
-| Lenovo product/package access | NOT RUN | NOT RUN |
-| Lenovo readme retrieval | NOT RUN | NOT RUN |
-| Offline import and understandable network failure | NOT RUN | NOT RUN |
-| Application closes cleanly | NOT RUN | NOT RUN |
+| JavaScript importer, ZIP and Lenovo transport unit tests | PASS | 17 tests on the OpenCode Node 24.18.1 runtime |
+| Python loopback transport tests | PASS | 13 tests on OpenCode Python 3.14.4 |
+| Linux HTTP start and asset delivery | PASS | Health, HTML, ES module, ZIP fixture and MIME types returned correctly |
+| Real supplied CDAT import, shared core under Node on Linux | PASS, partial source coverage | 170 files indexed, 809,756,540 bytes declared expanded; only 102,848 archive bytes read; 10 overview fields and 244 driver rows recovered. Six driver-table lines remain unresolved and are flagged. No customer identifiers committed. |
+| CDAT collection failures | PASS | COMException, NullArray and unavailable-event-log errors are reported as incomplete collection |
+| Mixed partial capture sources | PASS | Different capture roots rejected; regression included |
+| Lenovo catalog/package/readme from OpenCode | PASS | Ordinary HTTPS requests to the official 21MM Win11 catalog and n47uj13w metadata/readme returned content with source URL and UTC retrieval time |
+| UI in DOM emulation | PASS, limited | Actual app modules plus jsdom: demo import, tabs, filters, source binding, live catalog (46 entries), BIOS metadata and readme text. Native dialog/scroll behavior emulated; no visual/focus acceptance inferred. |
+| Real Chromium UI acceptance | BLOCKED | Chromium with sandbox enabled exited with 'No usable sandbox!' on OpenCode. Zero browser cases executed; no protections disabled. |
+| Installed Firefox acceptance | BLOCKED before launch | Remote command allow-list rejected firefox --version. No wrapper retry or screenshot. |
+| Windows PowerShell host | NOT RUN at initial implementation | Windows CI smoke test is supplied separately; record its actual result before claiming runtime success. |
+| Corporate Windows startup, browser interaction and proxy access | NOT RUN | Requires the intended corporate environment. |
+| Real browser layout, keyboard focus and interaction | NOT RUN | DOM emulation cannot establish these properties. |
 
-Use PASS, FAIL, BLOCKED or NOT RUN with actual evidence. Missing access is not a
-passing result. A blocked Windows check can remain explicitly open while
-independent importer/data-model work continues.
+The 21MM catalog currently contains an older BIOS package than was independently
+observed on the support website during research. Therefore the prototype labels
+catalog packages as research results, not as the latest applicable updates.
 
-## Decision record to complete
+## Scope of the first importer
 
-- Chosen language/runtime and shared analysis module location:
-- UI and local process arrangement:
-- Required installs, permissions and corporate Windows prerequisites:
-- Lenovo transport/session/proxy behavior:
-- Expected user launch steps on each platform:
-- Validation evidence and unresolved limitations:
-- Distribution/update approach:
-- Date and rationale:
+FileDetails.json, QuickData, ComputerInfo, Installed-HWD/Drivers.log and Issues
+are read when present. Source file and line references remain available.
+Large logs, registry exports, minidumps and other archive entries are listed,
+not automatically loaded. Duplicate/mixed capture roots, traversal, encryption,
+ZIP64, invalid checksums and over-limit content have explicit failure paths.
 
-Existing `npm` and Tauri commands build LORE 1.x. They are not the v2 launch or
-validation instructions.
+Text encodings supported initially: UTF-8 and BOM-marked UTF-16. Unsupported
+encodings and wrapped/unreadable rows stay visible as incomplete parsing.
+No snapshot comparison, active-device reconciliation, automatic package
+applicability analysis or report export is claimed yet.
+
+## Remaining decision
+
+Complete [the manual run](RUNNING-PROTOTYPE.md) on corporate Windows and a normal
+Linux browser. Record the accepted launch method, browser, proxy behavior,
+ordinary user permissions and any blockers. Then decide whether to keep these
+thin hosts or change distribution before building M1/M2.
+
+## Reproducibility
+
+Commands are listed in [RUNNING-PROTOTYPE.md](RUNNING-PROTOTYPE.md).
+Temporary browser/DOM test dependencies and diagnostic logs remain in ignored
+scratch directories on the development host. No real diagnostic archive,
+private key or machine-specific runtime dependency is committed.

@@ -1,6 +1,8 @@
-# LORE 2.0 preparation
+# LORE 2.0 development
 
-Status: preparation only. There is no runnable v2 application yet.
+Status: M0 prototype implemented under `prototype/`; platform acceptance is
+partial. See [start instructions](RUNNING-PROTOTYPE.md) and
+[validation evidence](PLATFORM-SPIKE.md).
 
 LORE 2.0 will turn Windows diagnostic collections into a readable, comparable
 device report on Windows and Linux. CDAT remains the initial collector.
@@ -13,10 +15,10 @@ it does not determine the v2 language, runtime, UI framework or packaging.
 - Development branch: `lore-v2`.
 - Starting point: `e6226db50d05110a3cffa9578c844f99d585df7c`.
 - Use a separate Git worktree; keep the main worktree available for 1.x.
-- This preparation changes documentation and ignore rules only.
-- Existing source files and npm/Tauri commands still belong to 1.x.
-- Decide which source files to replace when the platform experiment establishes
-  the implementation approach. Avoid maintaining two separate v2 applications.
+- New application work is isolated under `prototype/` during M0.
+- Existing root source files and npm/Tauri commands still belong to 1.x.
+- M0 uses shared browser JavaScript with small OS-specific transport hosts.
+  Confirm the distribution approach on corporate Windows before expanding it.
 
 ## User workflow
 
@@ -46,7 +48,7 @@ labelled; Linux success does not establish corporate Windows compatibility.
 
 ## Architecture boundaries
 
-These are responsibilities, not a choice of framework or services:
+These responsibilities remain separate in the M0 implementation:
 
 - Import adapters: CDAT first; supplementary TPM/standby collector separately.
 - Shared model: evidence, device snapshots, collection coverage and identity.
@@ -54,8 +56,8 @@ These are responsibilities, not a choice of framework or services:
 - Lenovo adapter: product lookup, package metadata, readmes and source caching.
 - Presentation/export: tabs, filters, differences and shareable reports.
 
-Keep one shared analysis implementation for Windows and Linux. PowerShell may
-later serve as a Windows collector. Importing Windows data on Linux does not
+Keep one shared analysis implementation for Windows and Linux. PowerShell currently provides the Windows loopback transport and may later
+also serve as a Windows collector. Importing Windows data on Linux does not
 imply collecting Linux inventory; a Linux collector is a separate future scope.
 
 ## Lenovo and LORE
@@ -82,6 +84,7 @@ download file's version describes every component in a package.
 
 ## Next work
 
-Start with [the platform experiment](PLATFORM-SPIKE.md), then formalize and
-implement the first import adapter using the [data requirements](DATA-CONTRACT.md).
-No final runtime or framework has been selected.
+Complete the corporate Windows/manual browser checks in
+[the platform experiment](PLATFORM-SPIKE.md), then extend the importer and
+comparison using the [data requirements](DATA-CONTRACT.md). The browser core is
+implemented; packaging and corporate compatibility remain experimental.
