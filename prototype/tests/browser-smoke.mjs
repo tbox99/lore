@@ -589,6 +589,13 @@ try {
     assert.equal(await card.getAttribute('data-version-relation'), 'newer');
     assert.equal(await card.getAttribute('data-applicability'), 'unknown');
     assert.equal(await card.getAttribute('data-status'), 'unresolved');
+    assert.equal(await card.locator('[data-update-field="installed"] dt').textContent(), 'Installed version');
+    assert.equal(await card.locator('[data-update-field="offered"] dt').textContent(), 'Available Lenovo version');
+    assert.equal(await card.locator('[data-update-field="version-result"]').textContent(), 'Newer version found');
+    assert.equal(await card.locator('[data-update-field="applicability"]').isVisible(), true);
+    assert.equal(await card.locator('.update-details').evaluate(details => details.open), false);
+    assert.equal(await card.locator('.update-reasons').isVisible(), false);
+    assert.equal(await card.locator('.update-sources').isVisible(), false);
   }
   assert.match(await biosUpdate.locator('[data-update-field="installed"]').textContent(), /1\.10/);
   assert.match(await biosUpdate.locator('[data-update-field="offered"]').textContent(), /1\.11/);
@@ -598,9 +605,17 @@ try {
   assert.match(await btUpdate.locator('.update-reasons').textContent(), /prerequisites|confirmed/i);
   assert.equal(updatePaths.filter(value => value.startsWith('/catalog/')).length, 1);
   assert.ok(updatePaths.every(value => !value.includes('DEMO0001')), 'Serial number must not be requested');
+  await noPageOverflow('Desktop concise Lenovo assessment');
+  await page.screenshot({ path: path.join(artifacts, 'synthetic-updates.png'), fullPage: true });
   pass('Explicit Lenovo check compares component versions and keeps applicability uncertainty', 'Numeric 24.9 < 24.10, BIOS readme version separate from package 9.8.7; derived hardware IDs and unsupported prerequisites stay unresolved');
 
   const beforeUpdateSourceRequests = updatePaths.length;
+  await wlanUpdate.locator('.update-details > summary').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await wlanUpdate.locator('.update-details').evaluate(details => details.open), true);
+  assert.equal(await wlanUpdate.locator('.update-sources').isVisible(), true);
+  const wlanSourcePaths = await wlanUpdate.locator('.update-sources button').evaluateAll(buttons => buttons.map(button => button.dataset.sourcePath));
+  assert.equal(wlanSourcePaths.length, new Set(wlanSourcePaths).size, 'Each source file gets one entry');
   await wlanUpdate.locator('.update-sources button[data-source-path$="DriversINFInstallDate.log"]').first().click();
   assert.match(await page.locator('#source-title').textContent(), /Capture A/);
   assert.match(await page.locator('#source-text').textContent(), /Current INF file is C:\\Windows\\INF\\oem10\.inf/);
@@ -609,19 +624,32 @@ try {
   assert.match(await page.locator('#source-text').textContent(), /1\.11 \(UEFI BIOS\)/);
   assert.match(await page.locator('#source-detail').textContent(), /lore_update_bios\.txt/);
   await page.keyboard.press('Escape');
-  await biosUpdate.locator('.update-readme-sections summary').click();
+  await biosUpdate.locator('.update-details > summary').focus();
+  await page.keyboard.press('Enter');
+  await biosUpdate.locator('.update-readme-sections > summary').focus();
+  await page.keyboard.press('Enter');
   assert.match(await biosUpdate.locator('.update-readme-sections').textContent(), /Verify the separately reported prerequisite/);
   assert.equal(updatePaths.length, beforeUpdateSourceRequests, 'Source/readme views use already retrieved evidence');
-  await noPageOverflow('Desktop Lenovo assessment');
-  await page.screenshot({ path: path.join(artifacts, 'synthetic-updates.png'), fullPage: true });
-  pass('Update results retain original CDAT binding and extracted readme evidence', 'Capture A source, original readme, retrieval context and prerequisite section are accessible locally');
+  await noPageOverflow('Desktop expanded Lenovo assessment');
+  await page.screenshot({ path: path.join(artifacts, 'synthetic-updates-details.png'), fullPage: true });
+  pass('Update results retain original CDAT binding and extracted readme evidence', 'Keyboard opens details; grouped Capture A sources and original readme remain accessible locally');
 
   const beforeUpdatePreferenceRequests = pageRequests.length;
   await page.locator('#language-select').selectOption('de');
   await page.locator('#font-size-select').selectOption('extra-large');
+  assert.equal(await biosUpdate.locator('.update-details').evaluate(details => details.open), true);
+  assert.equal(await wlanUpdate.locator('.update-details').evaluate(details => details.open), true);
   assert.equal(await biosUpdate.locator('.update-readme-sections').evaluate(details => details.open), true);
+  assert.equal(await wlanUpdate.locator('[data-update-field="installed"] dt').textContent(), 'Installierte Version');
+  assert.equal(await wlanUpdate.locator('[data-update-field="offered"] dt').textContent(), 'Verfügbare Lenovo-Version');
+  assert.equal(await wlanUpdate.locator('[data-update-field="applicability"]').isVisible(), true);
   assert.equal(await wlanUpdate.getAttribute('data-version-relation'), 'newer');
   assert.match(await wlanUpdate.locator('[data-update-field="offered"]').textContent(), /24\.10\.0\.3/);
+  for (const card of [biosUpdate, wlanUpdate]) {
+    await card.locator('.update-details > summary').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await card.locator('.update-details').evaluate(details => details.open), false);
+  }
   await page.setViewportSize({ width: 384, height: 900 });
   await noPageOverflow('384 px, extra-large Lenovo assessment');
   await page.screenshot({ path: path.join(artifacts, 'synthetic-updates-mobile-de-extra-large.png'), fullPage: true });
@@ -630,7 +658,9 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   assert.equal(pageRequests.length, beforeUpdatePreferenceRequests, 'Update translations and sizing must not refetch documents');
   assert.equal(await biosUpdate.getAttribute('data-applicability'), 'unknown');
-  pass('Update evidence survives translation and text scaling without requests', 'Expanded readme remains open; narrow results have no page overflow');
+  assert.equal(await wlanUpdate.locator('[data-update-field="installed"] dt').textContent(), 'Installed version');
+  assert.equal(await wlanUpdate.locator('[data-update-field="offered"] dt').textContent(), 'Available Lenovo version');
+  pass('Update evidence survives translation and text scaling without requests', 'EN/DE version labels, keyboard details state and compatibility remain usable; concise narrow results have no page overflow');
 
   updateMode = 'partial';
   await runUpdateCheck();

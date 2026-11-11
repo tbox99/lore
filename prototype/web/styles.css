@@ -256,17 +256,26 @@ dialog::backdrop { background: #18243677; backdrop-filter: blur(2px); }
 /* A bounded catalog check keeps version evidence separate from prerequisites. */
 .update-check-section { margin-bottom: 1.75rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--line); }
 .update-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
-.update-card { min-width: 0; margin-top: 1rem; padding: 1.1rem; border: 1px solid var(--line); border-radius: .5rem; }
+.update-card { min-width: 0; margin-top: 1rem; padding: 1.25rem; border: 1px solid var(--line); border-radius: .5rem; }
 .update-card-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: .75rem; }
 .update-card-header > div { min-width: 0; flex: 1 1 15rem; }
 .update-card h4 { margin: 0 0 .75rem; font-size: 1.1rem; font-weight: 650; overflow-wrap: anywhere; }
-.update-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin: .5rem 0 1rem; }
+.update-result { font-size: .85rem; padding: .4rem .65rem; }
+.update-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 2rem; margin: .75rem 0 1rem; max-width: 44rem; }
 .update-fields > div { min-width: 0; }
-.update-fields dt { margin-bottom: .3rem; color: var(--muted); font-size: .85rem; }
-.update-fields dd { margin: 0; font-size: .95rem; font-weight: 600; overflow-wrap: anywhere; }
+.update-fields dt { margin-bottom: .3rem; color: var(--muted); font-size: .9rem; }
+.update-fields dd { margin: 0; font-size: 1.45rem; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.update-fields dd.subtle { font-size: 1rem; }
+.update-overview-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
+.update-compatibility { margin: 0; font-size: .9rem; color: var(--muted); }
+.update-compatibility strong { color: var(--ink); font-weight: 600; }
+.update-details { border-top: 1px solid var(--line); padding-top: .75rem; }
+.update-details > summary { cursor: pointer; font-size: .95rem; font-weight: 600; width: fit-content; }
 .update-reasons { padding-left: 1.1rem; color: var(--muted); font-size: .875rem; }
 .update-reasons li + li { margin-top: .3rem; }
 .update-sources { display: flex; flex-direction: column; align-items: flex-start; gap: .3rem; margin: 1rem 0; font-size: .875rem; }
+.update-source-file { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .75rem; min-width: 0; max-width: 100%; }
+.update-source-file .subtle { overflow-wrap: anywhere; }
 .update-package { padding-top: .85rem; border-top: 1px solid var(--line); }
 .update-package > p { margin: 0 0 .5rem; overflow-wrap: anywhere; }
 .update-readme-sections { margin-top: 1rem; }

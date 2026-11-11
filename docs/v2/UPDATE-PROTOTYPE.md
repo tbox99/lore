@@ -9,9 +9,15 @@ Lenovo catalog, not with a live device or every Lenovo publication channel.
 1. Open a CDAT ZIP as capture A.
 2. Select **Lenovo update check** beneath the capture header.
 3. Select **Check Lenovo updates** in the Lenovo tab.
-4. Review installed and offered component versions, then the separate
-   prerequisite assessment and source links. Expand the readme extracts for
-   current changes, dependencies and important notices.
+4. Compare **Installed version** with **Available Lenovo version**. The result
+   and a separate **Compatibility** note stay visible. Open **Details** for
+   explanations, grouped CDAT source links, package metadata and readme
+   highlights; **Readme** opens the original text directly.
+
+The available version comes from the queried catalog; the label does not claim
+the latest release across all Lenovo channels. Sources are grouped by file with
+all referenced line numbers retained. Details start collapsed and preserve their
+open/closed state when the display language changes.
 
 The shortcut only navigates; the check button initiates the requests. The lookup
 uses capture A's unambiguous machine type and Windows 10/11 identity. Editing

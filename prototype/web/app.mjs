@@ -483,28 +483,53 @@ function renderUpdates() {
     const heading = node('div');
     heading.append(node('p', 'eyebrow', t(Object.hasOwn(translations.en, `updateKind_${row.kind}`) ? `updateKind_${row.kind}` : 'component')),
       node('h4', '', row.name || row.package?.title || t('component')));
-    header.append(heading, node('span', `status-tag ${row.status === 'unresolved' ? 'caution' : row.status === 'candidate' ? 'difference' : ''}`, t(Object.hasOwn(translations.en, `updateStatus_${row.status}`) ? `updateStatus_${row.status}` : 'updateStatus_unresolved')));
+    const versionKey = Object.hasOwn(translations.en, `updateVersion_${row.versionRelation}`) ? `updateVersion_${row.versionRelation}` : 'updateVersion_unknown';
+    const badge = node('span', `status-tag update-result ${row.versionRelation === 'newer' ? 'difference' : row.versionRelation === 'unknown' ? 'caution' : ''}`, t(versionKey));
+    badge.dataset.updateField = 'version-result';
+    header.append(heading, badge);
     card.append(header);
     const fields = node('dl', 'update-fields');
     for (const [label, value, key] of [
       ['updateInstalled', row.installedVersion, 'installed'], ['updateOffered', row.offeredVersion, 'offered'],
-      ['updateVersionResult', t(Object.hasOwn(translations.en, `updateVersion_${row.versionRelation}`) ? `updateVersion_${row.versionRelation}` : 'updateVersion_unknown'), 'version-result'],
-      ['updateApplicability', t(Object.hasOwn(translations.en, `updateApplicability_${row.applicability}`) ? `updateApplicability_${row.applicability}` : 'updateApplicability_unknown'), 'applicability'],
     ]) {
       const field = node('div'); field.dataset.updateField = key;
       field.append(node('dt', '', t(label)), node('dd', value ? '' : 'subtle', value || t('notDetermined'))); fields.append(field);
     }
     card.append(fields);
+    const footer = node('div', 'update-overview-footer');
+    const compatibility = node('p', 'update-compatibility');
+    compatibility.dataset.updateField = 'applicability';
+    compatibility.append(node('strong', '', `${t('updateApplicability')}: `), document.createTextNode(t(Object.hasOwn(translations.en, `updateApplicability_${row.applicability}`) ? `updateApplicability_${row.applicability}` : 'updateApplicability_unknown')));
+    footer.append(compatibility);
+    const readmeButton = updateReadmeButton(row);
+    if (readmeButton) footer.append(readmeButton);
+    card.append(footer);
+    const evidence = node('details', 'update-details');
+    evidence.dataset.detailKey = `evidence:${row.id}`;
+    evidence.open = expanded.has(evidence.dataset.detailKey);
+    evidence.append(node('summary', '', t('updateDetails')));
     if (row.reasons?.length) {
       const reasons = node('ul', 'update-reasons');
       for (const reason of new Set(row.reasons)) reasons.append(node('li', '', t(Object.hasOwn(translations.en, `updateReason_${reason}`) ? `updateReason_${reason}` : 'updateReason_unknown')));
-      card.append(reasons);
+      evidence.append(reasons);
     }
     if (row.sources?.length) {
       const sources = node('div', 'update-sources');
       sources.append(node('strong', '', t('updateCaptureEvidence')));
-      for (const ref of row.sources) if (ref.path) sources.append(sourceButton(ref.path, ref.line, null, state.snapshot, 'A'));
-      card.append(sources);
+      const files = new Map();
+      for (const ref of row.sources) {
+        if (!ref.path) continue;
+        if (!files.has(ref.path)) files.set(ref.path, new Set());
+        if (Number.isSafeInteger(ref.line) && ref.line > 0) files.get(ref.path).add(ref.line);
+      }
+      for (const [path, sourceLines] of files) {
+        const lines = [...sourceLines].sort((a, b) => a - b);
+        const entry = node('div', 'update-source-file');
+        entry.append(sourceButton(path, lines[0] || null, fileName(path), state.snapshot, 'A'));
+        if (lines.length) entry.append(node('span', 'subtle', t('updateSourceLines', { lines: lines.join(', ') })));
+        sources.append(entry);
+      }
+      evidence.append(sources);
     }
     if (row.package) {
       const metadata = node('div', 'update-package');
@@ -515,9 +540,7 @@ function renderUpdates() {
       if (source) links.append(source);
       const readmeLink = safeLink(row.readme?.sourceUrl || row.package.readmeUrl, t('readmeLink'));
       if (readmeLink) links.append(readmeLink);
-      const readmeButton = updateReadmeButton(row);
-      if (readmeButton) links.append(readmeButton);
-      metadata.append(links); card.append(metadata);
+      metadata.append(links); evidence.append(metadata);
     }
     if (row.readme?.sections?.length) {
       const details = node('details', 'update-readme-sections');
@@ -534,8 +557,9 @@ function renderUpdates() {
           node('pre', 'update-readme-text', section.text || ''));
         details.append(sectionNode);
       }
-      card.append(details);
+      evidence.append(details);
     }
+    card.append(evidence);
     root.append(card);
   }
   if (!result.rows?.length) root.append(node('p', 'alert warning', t('updateNoResults')));
