@@ -19,6 +19,12 @@ The script targets existing Windows PowerShell 5.1 and opens the normal browser.
 It listens only at http://127.0.0.1:8765/. Keep the terminal open; Ctrl+C stops it.
 For a different free port use `-Port 8766`; `-NoBrowser` suppresses browser launch.
 
+LORE uses the system `curl.exe` (8.4 or newer) when Windows selects a direct
+connection to Lenovo. It uses the PowerShell host's HTTP client when Windows
+selects a proxy or the required `curl.exe` version is unavailable. Both paths
+validate TLS, fetch only approved Lenovo metadata URLs and limit responses to
+8 MiB.
+
 If the configured Windows proxy requires integrated Windows authentication,
 start LORE with the Windows proxy sign-in option:
 
@@ -28,8 +34,8 @@ powershell.exe -NoProfile -File .\prototype\Start-Lore.ps1 -ProxyUseDefaultCrede
 
 This supplies the current Windows credentials to the configured system proxy
 when it requests authentication. The option applies to the LORE process.
-HTTP 407 identifies a proxy authentication response. Timeout messages say
-whether LORE was waiting for response headers or reading the document.
+HTTP 407 identifies a proxy authentication response. The PowerShell HTTP client
+distinguishes a response-header timeout from a document-body timeout.
 
 No execution-policy, certificate or security setting is changed. If corporate
 policy blocks the script, record the exact message as a platform-test result;

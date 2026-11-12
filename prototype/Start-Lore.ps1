@@ -27,6 +27,20 @@ $StaticTypes = @{
     '.svg' = 'image/svg+xml'; '.png' = 'image/png'; '.ico' = 'image/x-icon'
 }
 $Utf8 = New-Object System.Text.UTF8Encoding($false)
+$WindowsCurl = $null
+if ($PSVersionTable.PSEdition -eq 'Desktop') {
+    $SystemCurl = Join-Path ([Environment]::GetFolderPath('System')) 'curl.exe'
+    if ([IO.File]::Exists($SystemCurl)) {
+        try {
+            $VersionText = (& $SystemCurl --disable --version) -join "`n"
+            # 8.4 also enforces --max-filesize for responses with unknown length.
+            if ($LASTEXITCODE -eq 0 -and $VersionText -match '\Acurl (\d+\.\d+\.\d+)\b' -and
+                [version]$Matches[1] -ge [version]'8.4.0') {
+                $WindowsCurl = $SystemCurl
+            }
+        } catch { $WindowsCurl = $null }
+    }
+}
 $HttpHandler = New-Object System.Net.Http.HttpClientHandler
 $HttpHandler.AllowAutoRedirect = $false
 # The default handler retains the system proxy and normal TLS certificate checks.
@@ -89,12 +103,85 @@ function Throw-LenovoNetworkError {
     Throw-TransportError 'Windows could not complete the Lenovo request. Check the connection, proxy and certificates.'
 }
 
-function Get-LenovoText {
-    param([string]$Path)
-    if (-not (Test-LenovoPath $Path)) {
-        Throw-TransportError 'This Lenovo path is not allowed.' 400
+function Confirm-LenovoStatus {
+    param([int]$Code)
+    if ($Code -eq 407) {
+        Throw-TransportError 'The Windows proxy requires authentication (HTTP 407).'
     }
-    $Url = "https://download.lenovo.com$Path"
+    if ($Code -ge 300 -and $Code -lt 400) {
+        Throw-TransportError 'Lenovo returned a redirect; it was not followed.'
+    }
+    if ($Code -ne 200) { Throw-TransportError "Lenovo returned HTTP $Code. Please check the source and network." }
+}
+
+function Convert-LenovoText {
+    param([string]$Url, [byte[]]$Bytes, [string]$Charset)
+    $Decoder = $Utf8
+    if ($Charset) {
+        try { $Decoder = [Text.Encoding]::GetEncoding($Charset.Trim('"')) } catch { $Decoder = $Utf8 }
+    }
+    return @{
+        url = $Url
+        retrievedAt = [DateTime]::UtcNow.ToString('o')
+        text = $Decoder.GetString($Bytes).TrimStart([char]0xFEFF)
+    }
+}
+
+function Get-LenovoTextViaCurl {
+    param([string]$Url)
+    $File = [IO.Path]::GetTempFileName()
+    try {
+        # Ignore curlrc so the request options are controlled by this transport.
+        $CurlArgs = @(
+            '--disable', '--silent', '--proto', '=https',
+            '--max-time', '20',
+            '--max-filesize', [string]$MaxUpstreamBytes,
+            '--header', 'Accept-Encoding: identity', '--output', $File,
+            '--write-out', '%{http_code}\n%{http_connect}\n%{header_json}', '--url', $Url
+        )
+        $Metadata = (& $WindowsCurl @CurlArgs) -join "`n"
+        $ExitCode = $LASTEXITCODE
+        $Code, $ProxyCode, $HeadersJson = $Metadata -split '\r?\n', 3
+        if ($ProxyCode -eq '407') { Confirm-LenovoStatus 407 }
+        switch ($ExitCode) {
+            0 { Confirm-LenovoStatus ([int]$Code) }
+            18 { Throw-TransportError 'The Lenovo response was incomplete.' }
+            28 { Throw-TransportError 'The Lenovo request timed out in Windows curl.' 504 }
+            63 { Throw-TransportError 'The Lenovo response is too large.' }
+            default { Throw-TransportError "Windows curl could not complete the Lenovo request (exit code $ExitCode)." }
+        }
+        $Headers = ConvertFrom-Json -InputObject $HeadersJson
+        $ContentEncoding = $Headers.PSObject.Properties['content-encoding']
+        if ($null -ne $ContentEncoding) {
+            foreach ($Encoding in ($ContentEncoding.Value -split ',')) {
+                if ($Encoding.Trim() -ne 'identity') { Throw-TransportError 'Unsupported compression in the Lenovo response.' }
+            }
+        }
+        if ((Get-Item -LiteralPath $File).Length -gt $MaxUpstreamBytes) {
+            Throw-TransportError 'The Lenovo response is too large.'
+        }
+        $ContentType = $Headers.PSObject.Properties['content-type']
+        $MediaType = $null
+        $Charset = ''
+        if ($null -ne $ContentType -and [Net.Http.Headers.MediaTypeHeaderValue]::TryParse($ContentType.Value[0], [ref]$MediaType)) {
+            $Charset = $MediaType.CharSet
+        }
+        return (Convert-LenovoText $Url ([IO.File]::ReadAllBytes($File)) $Charset)
+    } finally {
+        [IO.File]::Delete($File)
+    }
+}
+
+function Test-LenovoDirectConnection {
+    param([uri]$Url)
+    try {
+        $Proxy = [Net.WebRequest]::DefaultWebProxy
+        return ($null -eq $Proxy -or $Proxy.IsBypassed($Url))
+    } catch { return $false }
+}
+
+function Get-LenovoTextViaHttpClient {
+    param([string]$Url)
     $Cancellation = New-Object System.Threading.CancellationTokenSource
     $Cancellation.CancelAfter(20000)
     $Request = New-Object System.Net.Http.HttpRequestMessage([Net.Http.HttpMethod]::Get, $Url)
@@ -107,14 +194,7 @@ function Get-LenovoText {
         [void]$Request.Headers.TryAddWithoutValidation('Accept', 'application/xml,text/plain,text/html;q=0.9,*/*;q=0.1')
         [void]$Request.Headers.TryAddWithoutValidation('Accept-Encoding', 'identity')
         $Response = $Http.SendAsync($Request, [Net.Http.HttpCompletionOption]::ResponseHeadersRead, $Cancellation.Token).GetAwaiter().GetResult()
-        $Code = [int]$Response.StatusCode
-        if ($Code -eq 407) {
-            Throw-TransportError 'The Windows proxy requires authentication (HTTP 407).'
-        }
-        if ($Code -ge 300 -and $Code -lt 400) {
-            Throw-TransportError 'Lenovo returned a redirect; it was not followed.'
-        }
-        if ($Code -ne 200) { Throw-TransportError "Lenovo returned HTTP $Code. Please check the source and network." }
+        Confirm-LenovoStatus ([int]$Response.StatusCode)
         foreach ($Encoding in $Response.Content.Headers.ContentEncoding) {
             if ($Encoding -ne 'identity') { Throw-TransportError 'Unsupported compression in the Lenovo response.' }
         }
@@ -134,15 +214,8 @@ function Get-LenovoText {
         if ($null -ne $Length -and $BufferStream.Length -ne $Length) {
             Throw-TransportError 'The Lenovo response was incomplete.'
         }
-        $Decoder = $Utf8
-        if ($null -ne $Response.Content.Headers.ContentType -and $Response.Content.Headers.ContentType.CharSet) {
-            try { $Decoder = [Text.Encoding]::GetEncoding($Response.Content.Headers.ContentType.CharSet.Trim('"')) } catch { $Decoder = $Utf8 }
-        }
-        return @{
-            url = $Url
-            retrievedAt = [DateTime]::UtcNow.ToString('o')
-            text = $Decoder.GetString($BufferStream.ToArray()).TrimStart([char]0xFEFF)
-        }
+        $Charset = if ($null -ne $Response.Content.Headers.ContentType) { $Response.Content.Headers.ContentType.CharSet }
+        return (Convert-LenovoText $Url ($BufferStream.ToArray()) $Charset)
     } catch {
         if ($_.Exception.Data.Contains('Status')) { throw }
         Throw-LenovoNetworkError $_.Exception $Cancellation.IsCancellationRequested $Phase
@@ -153,6 +226,18 @@ function Get-LenovoText {
         $Cancellation.Dispose()
         $BufferStream.Dispose()
     }
+}
+
+function Get-LenovoText {
+    param([string]$Path)
+    if (-not (Test-LenovoPath $Path)) {
+        Throw-TransportError 'This Lenovo path is not allowed.' 400
+    }
+    $Url = "https://download.lenovo.com$Path"
+    if ($WindowsCurl -and (Test-LenovoDirectConnection $Url)) {
+        return (Get-LenovoTextViaCurl $Url)
+    }
+    return (Get-LenovoTextViaHttpClient $Url)
 }
 
 function Read-Request {
