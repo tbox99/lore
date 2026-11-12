@@ -39,9 +39,15 @@ function fileName(path) { return String(path || '').split(/[\\/]/).pop() || t('s
 function renderMessage(id) {
   const message = uiMessages.get(id);
   const value = typeof message.render === 'function' ? message.render() : message.render;
-  $(id).textContent = value;
-  if (message.isError) $(id).hidden = !value;
-  else $(id).classList.toggle('busy', message.busy);
+  const element = $(id);
+  element.textContent = value;
+  if (message.isError) element.hidden = !value;
+  else {
+    element.classList.toggle('busy', message.busy);
+    if (id === 'app-status' || id === 'update-status') {
+      element.classList.toggle('visually-hidden', !message.busy);
+    }
+  }
 }
 function status(id, render, busy = false) { uiMessages.set(id, { render, busy }); renderMessage(id); }
 function error(id, render = '') { uiMessages.set(id, { render, isError: true }); renderMessage(id); }
@@ -110,11 +116,14 @@ function activateTab(name, focus = false) {
     tab.setAttribute('aria-selected', String(selected));
     tab.tabIndex = selected ? 0 : -1;
     $(`panel-${tab.dataset.tab}`).hidden = !selected;
-    if (selected && focus) tab.focus();
   });
+  renderWorkspaceVisibility();
+  if (focus) $(`tab-${name}`).focus();
 }
-function resetLenovo() {
-  resetUpdates();
+function renderWorkspaceVisibility() {
+  $('workspace-card').hidden = !state.snapshot && $('panel-lenovo').hidden;
+}
+function resetCatalog() {
   state.catalogSeq += 1; state.detailSeq += 1; state.readmeSeq += 1;
   catalogController?.abort(); detailController?.abort(); readmeController?.abort();
   state.catalog = null; state.package = null; state.selectedPackage = null; state.catalogQuery = null; state.readmeLoading = false;
@@ -129,26 +138,32 @@ function resetLenovo() {
 
 function renderOverview() {
   const data = state.snapshot;
+  $('dropzone').classList.toggle('has-capture', !!data);
+  $('analysis-tabs').hidden = !data;
+  $('update-check-section').hidden = !data;
+  $('open-catalog').hidden = !!data;
+  $('archive-label').textContent = t(data ? 'openAnotherZip' : 'chooseZip');
+  $('archive-button').classList.toggle('primary', !data);
+  $('archive-button').classList.toggle('secondary', !!data);
   $('capture-actions').hidden = !data;
   $('capture-compare').disabled = state.importing || !data;
-  $('capture-updates').disabled = state.importing || !data;
-  $('overview-empty').hidden = !!data;
   $('overview-content').hidden = !data;
+  $('capture-state').hidden = !data?.warnings?.length;
   $('driver-tab-count').textContent = number.format(data?.drivers?.length || 0);
   $('file-tab-count').textContent = number.format(data?.files?.length || 0);
   $('device-grid').replaceChildren(); $('coverage-list').replaceChildren(); $('warning-list').replaceChildren();
+  renderWorkspaceVisibility();
   if (!data) {
     $('capture-title').textContent = t(state.importing ? 'readingCapture' : 'noCapture');
-    $('capture-meta').textContent = t('capturePrompt');
-    $('capture-state').textContent = t(state.importing ? 'importing' : 'ready');
-    $('capture-state').className = 'capture-state';
+    $('capture-meta').textContent = state.importing ? '' : t('capturePrompt');
     return;
   }
   const warnings = data.warnings || [];
   $('capture-title').textContent = data.device.model || data.device.mtm || t('capture');
-  $('capture-meta').textContent = t('captureMeta', { file: data.archive.fileName || t('archive'), count: number.format(data.archive.entryCount), size: bytes(data.archive.totalUncompressedBytes) });
+  const archive = t('captureMeta', { file: data.archive.fileName || t('archive'), count: number.format(data.archive.entryCount), size: bytes(data.archive.totalUncompressedBytes) });
+  const captureTime = data.device.capturedAt ? t('captureTimestamp', { time: data.device.capturedAt }) : '';
+  $('capture-meta').textContent = [archive, captureTime].filter(Boolean).join(' · ');
   $('capture-state').textContent = warnings.length ? t(warnings.length === 1 ? 'noticeCountOne' : 'noticeCount', { count: number.format(warnings.length) }) : t('imported');
-  $('capture-state').className = `capture-state ${warnings.length ? 'partial' : 'loaded'}`;
   for (const key of fieldLabels) {
     const item = node('div', 'device-item');
     const value = data.device[key];
@@ -219,6 +234,7 @@ function setImportBusy(busy) {
   state.importing = busy;
   $('workspace-card').setAttribute('aria-busy', String(busy));
   $('demo-button').disabled = busy || !zipSupported;
+  $('open-catalog').disabled = busy;
   $('catalog-button').disabled = busy;
   $('machine-type').disabled = busy;
   $('catalog-os').disabled = busy;
@@ -228,11 +244,15 @@ function setImportBusy(busy) {
 async function loadArchive(file, isDemo = false) {
   if (!zipSupported) return;
   const seq = ++state.importSeq;
-  setImportBusy(true); resetLenovo();
+  setImportBusy(true);
   if ($('source-dialog').open) $('source-dialog').close();
   state.snapshot = null;
   sourceView = null;
+  resetUpdates();
+  resetCatalog();
+  $('manual-catalog').open = false;
   resetComparison();
+  activateTab('overview');
   $('comparison-filter').value = 'all'; $('comparison-search').value = '';
   $('driver-search').value = ''; $('file-search').value = '';
   $('machine-type').value = '';
@@ -250,7 +270,6 @@ async function loadArchive(file, isDemo = false) {
     if (/windows\s*10/i.test(result.device.os || '')) $('catalog-os').value = 'Win10';
     else $('catalog-os').value = 'Win11';
     renderSnapshot();
-    activateTab('overview');
     status('app-status', () => t('importComplete', { kind: t(isDemo ? 'syntheticExample' : 'captureNoun'), count: number.format(result.archive.entryCount), size: bytes(result.archive.readBytes) }));
   } catch (err) {
     if (seq !== state.importSeq) return;
@@ -412,11 +431,12 @@ function renderComparison() {
   renderComparisonRows(result.driverRows, 'driver-comparison', 'driver-comparison-empty', 'comparison-driver-count');
 }
 function renderUpdateControls() {
-  $('update-check').disabled = state.importing || state.updating || !state.snapshot;
-  $('update-check').textContent = t(state.updating ? 'updateChecking' : 'updateCheck');
-  $('update-capture-context').textContent = state.snapshot
-    ? t('updateCaptureContext', { model: state.snapshot.device.model || state.snapshot.device.mtm || t('capture'), time: state.snapshot.device.capturedAt || t('timeUnknown') })
-    : t('openFirst');
+  const label = t(state.updating ? 'updateChecking' : state.updates ? 'updateRecheck' : 'updateCheck');
+  for (const id of ['capture-updates', 'update-check']) {
+    const button = $(id);
+    button.disabled = state.importing || state.updating || !state.snapshot;
+    button.textContent = label;
+  }
 }
 function resetUpdates() {
   state.updateSeq += 1;
@@ -472,6 +492,7 @@ function renderUpdates() {
     }
     warning.append(list); root.append(warning);
   }
+  const cards = node('div', 'update-grid');
   for (const row of result.rows || []) {
     const card = node('article', 'update-card');
     card.dataset.updateId = row.id;
@@ -482,7 +503,7 @@ function renderUpdates() {
     const header = node('div', 'update-card-header');
     const heading = node('div');
     heading.append(node('p', 'eyebrow', t(Object.hasOwn(translations.en, `updateKind_${row.kind}`) ? `updateKind_${row.kind}` : 'component')),
-      node('h4', '', row.name || row.package?.title || t('component')));
+      node('h3', '', row.name || row.package?.title || t('component')));
     const versionKey = Object.hasOwn(translations.en, `updateVersion_${row.versionRelation}`) ? `updateVersion_${row.versionRelation}` : 'updateVersion_unknown';
     const badge = node('span', `status-tag update-result ${row.versionRelation === 'newer' ? 'difference' : row.versionRelation === 'unknown' ? 'caution' : ''}`, t(versionKey));
     badge.dataset.updateField = 'version-result';
@@ -552,7 +573,7 @@ function renderUpdates() {
       for (const section of row.readme.sections) {
         const sectionNode = node('section');
         const key = `updateSection_${section.kind}`;
-        sectionNode.append(node('h5', '', Object.hasOwn(translations.en, key) ? t(key) : section.title || t('updateReadme')),
+        sectionNode.append(node('h4', '', Object.hasOwn(translations.en, key) ? t(key) : section.title || t('updateReadme')),
           node('p', 'subtle', t('updateReadmeLines', { start: section.startLine ?? '–', end: section.endLine ?? section.startLine ?? '–' })),
           node('pre', 'update-readme-text', section.text || ''));
         details.append(sectionNode);
@@ -560,13 +581,16 @@ function renderUpdates() {
       evidence.append(details);
     }
     card.append(evidence);
-    root.append(card);
+    cards.append(card);
   }
-  if (!result.rows?.length) root.append(node('p', 'alert warning', t('updateNoResults')));
+  if (cards.childElementCount) root.append(cards);
+  else root.append(node('p', 'alert warning', t('updateNoResults')));
 }
 async function loadUpdates() {
   const snapshot = state.snapshot;
   if (!snapshot || state.importing || state.updating) return;
+  activateTab('lenovo');
+  $('update-heading').focus();
   resetUpdates();
   const seq = state.updateSeq;
   const importSeq = state.importSeq;
@@ -628,7 +652,7 @@ async function loadCatalog(event) {
   const machineType = $('machine-type').value.trim().toUpperCase();
   const os = $('catalog-os').value;
   if (!/^[A-Z0-9]{4}$/.test(machineType)) { error('catalog-error', () => t('machineInvalid')); return; }
-  resetLenovo();
+  resetCatalog();
   const seq = state.catalogSeq;
   catalogController = new AbortController();
   $('catalog-button').disabled = true;
@@ -749,8 +773,13 @@ document.querySelectorAll('[data-tab]').forEach((tab, index, tabs) => {
   });
 });
 $('capture-compare').addEventListener('click', () => { activateTab('comparison'); $('compare-input').focus(); });
-$('capture-updates').addEventListener('click', () => { activateTab('lenovo'); $('update-check').focus(); });
+$('capture-updates').addEventListener('click', loadUpdates);
 $('update-check').addEventListener('click', loadUpdates);
+$('open-catalog').addEventListener('click', () => {
+  activateTab('lenovo');
+  $('manual-catalog').open = true;
+  $('machine-type').focus();
+});
 $('compare-input').addEventListener('change', (event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) loadComparison(file); });
 $('compare-remove').addEventListener('click', resetComparison);
 $('comparison-filter').addEventListener('change', renderComparison);
@@ -759,8 +788,8 @@ $('driver-search').addEventListener('input', renderDrivers);
 $('file-search').addEventListener('input', renderFiles);
 $('catalog-search').addEventListener('input', renderCatalog);
 $('catalog-form').addEventListener('submit', loadCatalog);
-$('machine-type').addEventListener('input', resetLenovo);
-$('catalog-os').addEventListener('change', resetLenovo);
+$('machine-type').addEventListener('input', resetCatalog);
+$('catalog-os').addEventListener('change', resetCatalog);
 $('source-close').addEventListener('click', () => $('source-dialog').close());
 $('source-dialog').addEventListener('close', () => sourceView?.returnFocus?.());
 $('source-dialog').addEventListener('click', (event) => { if (event.target === $('source-dialog')) { const box = event.target.getBoundingClientRect(); if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) event.target.close(); } });

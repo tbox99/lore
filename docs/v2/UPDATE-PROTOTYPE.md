@@ -7,24 +7,22 @@ Lenovo catalog, not with a live device or every Lenovo publication channel.
 ## Using the check
 
 1. Open a CDAT ZIP as capture A.
-2. Select **Lenovo update check** beneath the capture header.
-3. Select **Check Lenovo updates** in the Lenovo tab.
-4. Compare **Installed version** with **Available Lenovo version**. The result
-   and a separate **Compatibility** note stay visible. Open **Details** for
-   explanations, grouped CDAT source links, package metadata and readme
-   highlights; **Readme** opens the original text directly.
+2. Select **Check Lenovo updates** in the capture header to start the check.
+3. Compare **Installed version** with **Available Lenovo version** and review
+   the **Compatibility** note. Open **Details** for explanations, grouped CDAT
+   sources, package metadata and readme highlights. **Readme** opens the
+   original text.
 
 The available version comes from the queried catalog; the label does not claim
 the latest release across all Lenovo channels. Sources are grouped by file with
 all referenced line numbers retained. Details start collapsed and preserve their
 open/closed state when the display language changes.
 
-The shortcut only navigates; the check button initiates the requests. The lookup
-uses capture A's unambiguous machine type and Windows 10/11 identity. Editing
-the separate manual catalog lookup clears existing check results; the next
-check still derives its identity from A. Capture B does not change this check.
-Replacing A cancels and invalidates outstanding work. Language and text-size
-changes preserve results without fetching again.
+The lookup uses capture A's unambiguous machine type and Windows 10/11 identity.
+**Browse Lenovo catalog** opens a manual lookup with its own model and OS
+fields. Those fields affect the manual lookup only. Replacing A cancels
+outstanding work and clears the assessment. Language and text-size changes
+preserve results without fetching again.
 
 ## Installed-device evidence
 

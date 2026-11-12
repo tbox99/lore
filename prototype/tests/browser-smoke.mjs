@@ -174,8 +174,8 @@ function updateReadme(kind) {
     'Verify the separately reported prerequisite before installation.', '', 'Version Information',
     'Historical model mention (Type 9999) is not current supported-model evidence.'].join('\n');
 }
-async function runUpdateCheck() {
-  await page.locator('#update-check').click();
+async function runUpdateCheck(button = '#update-check') {
+  await page.locator(button).click();
   await page.locator('#update-results').waitFor({ state: 'visible' });
   await page.waitForFunction(() => !document.querySelector('#update-status').classList.contains('busy')
     && !document.querySelector('#update-check').disabled);
@@ -206,10 +206,23 @@ try {
   assert.ok((await skipLink.boundingBox()).y >= 0);
   await page.keyboard.press('Tab');
   assert.equal(await skipLink.evaluate(link => getComputedStyle(link).opacity), '0');
+  assert.equal(await page.locator('#workspace-card').isVisible(), false);
+  assert.equal(await page.locator('#archive-label').textContent(), 'Open CDAT ZIP');
+  await page.screenshot({ path: path.join(artifacts, 'synthetic-start.png'), fullPage: true });
+  const beforeCatalogNavigation = pageRequests.length;
+  await page.locator('#open-catalog').click();
+  assert.equal(await page.locator('#manual-catalog').evaluate(details => details.open), true);
+  assert.equal(await page.locator('#machine-type').evaluate(input => document.activeElement === input), true);
+  assert.equal(await page.locator('#update-check-section').isVisible(), false);
+  assert.equal(pageRequests.length, beforeCatalogNavigation);
   pass('English is the default in a German browser', '18 px default root font');
 
   const demoPath = path.join(prototype, 'web', 'demo-cdat.zip');
-  await page.locator('#archive-input').setInputFiles(demoPath);
+  const [fileChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.locator('#archive-button').click(),
+  ]);
+  await fileChooser.setFiles(demoPath);
   await page.waitForFunction(() => document.querySelector('#driver-tab-count').textContent === '3' && document.querySelector('#file-tab-count').textContent === '7');
   assert.match(await page.locator('#capture-title').textContent(), /ThinkPad Demo/);
   assert.equal(await page.locator('#app-error').isVisible(), false);
@@ -341,6 +354,7 @@ try {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: `https://download.lenovo.com${query}`, retrievedAt: '2026-01-01T12:00:00Z', text: document }) });
   });
   await page.locator('#tab-lenovo').click();
+  await page.locator('#manual-catalog > summary').click();
   await page.locator('#machine-type').fill('21MM');
   await page.locator('#catalog-button').click();
   await page.locator('#catalog-content').waitFor({ state: 'visible' });
@@ -522,6 +536,7 @@ try {
   await page.locator('#language-select').selectOption('de');
   await page.locator('#font-size-select').selectOption('extra-large');
   await page.setViewportSize({ width: 384, height: 900 });
+  assert.equal(await page.locator('#analysis-tabs').evaluate(tabs => tabs.scrollWidth <= tabs.clientWidth + 1), true);
   for (const tab of ['overview', 'drivers', 'files', 'lenovo', 'comparison']) {
     await page.locator(`#tab-${tab}`).click();
     await noPageOverflow(`384 px, extra-large text, ${tab}`);
@@ -577,11 +592,13 @@ try {
     && !document.querySelector('#app-status').classList.contains('busy'));
   await page.locator('#capture-compare').click();
   assert.equal(await page.locator('#tab-comparison').getAttribute('aria-selected'), 'true');
-  await page.locator('#capture-updates').click();
-  assert.equal(await page.locator('#tab-lenovo').getAttribute('aria-selected'), 'true');
-  assert.equal(await page.locator('#update-check').evaluate(button => document.activeElement === button), true);
+  await page.locator('#tab-lenovo').click();
+  assert.equal(await page.locator('#manual-catalog').evaluate(details => details.open), false);
   assert.deepEqual(updatePaths, [], 'Import and direct navigation must not contact Lenovo');
-  await runUpdateCheck();
+  await page.locator('#tab-overview').click();
+  await runUpdateCheck('#capture-updates');
+  assert.equal(await page.locator('#tab-lenovo').getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#update-heading').evaluate(heading => document.activeElement === heading), true);
   assert.equal(await page.locator('#update-results .update-card').count(), 3);
   const updateRow = kind => page.locator(`#update-results .update-card[data-kind="${kind}"]`);
   const biosUpdate = updateRow('bios'), wlanUpdate = updateRow('wlan'), btUpdate = updateRow('bluetooth');
@@ -605,9 +622,11 @@ try {
   assert.match(await btUpdate.locator('.update-reasons').textContent(), /prerequisites|confirmed/i);
   assert.equal(updatePaths.filter(value => value.startsWith('/catalog/')).length, 1);
   assert.ok(updatePaths.every(value => !value.includes('DEMO0001')), 'Serial number must not be requested');
+  const cardTops = await page.locator('#update-results .update-card').evaluateAll(cards => cards.map(card => card.getBoundingClientRect().top));
+  assert.equal(new Set(cardTops).size, 1, 'The three result cards share one desktop row');
   await noPageOverflow('Desktop concise Lenovo assessment');
   await page.screenshot({ path: path.join(artifacts, 'synthetic-updates.png'), fullPage: true });
-  pass('Explicit Lenovo check compares component versions and keeps applicability uncertainty', 'Numeric 24.9 < 24.10, BIOS readme version separate from package 9.8.7; derived hardware IDs and unsupported prerequisites stay unresolved');
+  pass('Direct Lenovo check compares component versions and keeps applicability uncertainty', 'One click from the capture opens the results; numeric versions and unresolved prerequisites retain their meanings');
 
   const beforeUpdateSourceRequests = updatePaths.length;
   await wlanUpdate.locator('.update-details > summary').focus();
@@ -684,12 +703,13 @@ try {
   const beforeSecondaryRequests = updatePaths.length;
   await page.locator('#capture-compare').click();
   await loadComparison(comparisonFixture({ wifi: '88.88.88.88' }), 'unrelated-secondary.zip');
-  await page.locator('#capture-updates').click();
+  await page.locator('#tab-lenovo').click();
   assert.match(await wlanUpdate.locator('[data-update-field="installed"]').textContent(), /24\.9\.0\.4/);
   assert.equal(updatePaths.length, beforeSecondaryRequests);
+  await page.locator('#manual-catalog > summary').click();
   await page.locator('#machine-type').fill('9999');
-  assert.equal(await page.locator('#update-results').isVisible(), false);
-  await page.locator('#machine-type').fill('21MM');
+  assert.equal(await page.locator('#update-results').isVisible(), true);
+  assert.equal(updatePaths.length, beforeSecondaryRequests);
   updateMode = 'hold';
   const heldRequest = new Promise(resolve => { signalHeldUpdate = resolve; });
   const heldDone = new Promise(resolve => { heldUpdateDone = resolve; });
@@ -704,17 +724,14 @@ try {
   await page.waitForTimeout(250);
   assert.equal(await page.locator('#update-results').isVisible(), false);
   assert.equal(await page.locator('#update-error').isVisible(), false);
-  await page.locator('#capture-updates').click();
-  assert.equal(await page.locator('#update-check').isEnabled(), true);
-  await runUpdateCheck();
+  await runUpdateCheck('#capture-updates');
   assert.match(await wlanUpdate.locator('[data-update-field="installed"]').textContent(), /24\.9\.0\.4/);
-  pass('Update state stays bound to A and rejects late responses after replacement', 'B causes no requests or reassessment; edited query and new A clear prior results; a new check succeeds');
+  pass('Update state stays bound to A and rejects late responses after replacement', 'B and manual catalog edits preserve the assessment; new A clears results and a new check succeeds');
 
   await page.locator('#archive-input').setInputFiles({ name: 'missing-radio-evidence.zip', mimeType: 'application/zip', buffer: updateFixture({ inventory: false, title: 'Missing radio identity synthetic device' }) });
   await page.waitForFunction(() => document.querySelector('#capture-title').textContent === 'Missing radio identity synthetic device'
     && !document.querySelector('#app-status').classList.contains('busy'));
-  await page.locator('#capture-updates').click();
-  await runUpdateCheck();
+  await runUpdateCheck('#capture-updates');
   for (const card of [wlanUpdate, btUpdate]) {
     assert.equal(await card.getAttribute('data-version-relation'), 'unknown');
     assert.equal(await card.getAttribute('data-applicability'), 'unknown');

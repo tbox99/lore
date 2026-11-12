@@ -12,45 +12,46 @@
   <a class="skip-link" href="#workspace"><span data-i18n="skip">Skip to workspace</span></a>
   <header class="topbar">
     <div class="brand"><span class="brand-mark" aria-hidden="true">L</span><span>LORE <span class="brand-version">2.0</span></span></div>
-    <div class="header-note"><span class="status-dot" aria-hidden="true"></span><span data-i18n="local">Local on your computer</span></div>
-    <span class="preview-badge"><span data-i18n="prototype">Technical prototype</span></span>
     <div class="display-settings" role="group" aria-label="Display preferences" data-i18n-aria-label="preferences">
       <label class="setting-field"><span data-i18n="language">Language</span><select id="language-select"><option value="en" lang="en">English</option><option value="de" lang="de">Deutsch</option></select></label>
       <label class="setting-field"><span data-i18n="textSize">Text size</span><select id="font-size-select"><option value="standard" data-i18n="standard">Standard</option><option value="large" data-i18n="large">Large</option><option value="extra-large" data-i18n="extraLarge">Extra large</option></select></label>
     </div>
   </header>
 
-  <main id="workspace">
-    <section class="intro" aria-labelledby="page-title">
-      <div><p class="eyebrow"><span data-i18n="eyebrow">LENOVO DEVICE ANALYSIS</span></p><h1 id="page-title"><span data-i18n="heading">From data to insight.</span></h1><p class="intro-copy"><span data-i18n="intro">Open CDAT captures, compare reported values and research Lenovo packages.</span></p></div>
-      <p class="milestone"><span class="milestone-stage">M0</span><span data-i18n="milestone">Import &amp; connectivity check</span></p>
+  <main id="workspace" tabindex="-1">
+    <section class="capture-header" id="dropzone" aria-labelledby="capture-title">
+      <div class="capture-identity">
+        <h1 id="capture-title" data-i18n="noCapture">Open a CDAT capture</h1>
+        <p id="capture-meta" data-i18n="capturePrompt">Choose a CDAT ZIP or drop it here. LORE reads the capture locally.</p>
+      </div>
+      <span class="capture-state" id="capture-state" hidden></span>
+      <div class="capture-toolbar">
+        <label class="button primary file-button" id="archive-button" for="archive-input">
+          <span id="archive-label" data-i18n="chooseZip">Open CDAT ZIP</span>
+          <input id="archive-input" type="file" accept=".zip,application/zip">
+        </label>
+        <div class="capture-actions" id="capture-actions" hidden>
+          <button class="button secondary" id="capture-compare" type="button" data-i18n="captureCompare">Compare captures</button>
+          <button class="button primary" id="capture-updates" type="button" data-i18n="updateCheck">Check Lenovo updates</button>
+        </div>
+        <button class="button quiet" id="demo-button" type="button" data-i18n="loadDemo">Load example</button>
+        <button class="button quiet" id="open-catalog" type="button" data-i18n="researchPackages">Browse Lenovo catalog</button>
+      </div>
+      <p class="status-message visually-hidden" id="app-status" role="status" aria-live="polite"></p>
     </section>
-
-    <section class="import-zone" id="dropzone" aria-labelledby="import-title">
-      <div class="import-icon" aria-hidden="true">↥</div>
-      <div class="import-description"><h2 id="import-title"><span data-i18n="drop">Drop a CDAT ZIP here</span></h2><p><span data-i18n="localImport">The capture is processed directly in your browser.</span></p></div>
-      <div class="import-actions"><label class="button primary file-button" for="archive-input"><span data-i18n="chooseZip">Choose ZIP</span><input id="archive-input" type="file" accept=".zip,application/zip"></label><button class="button secondary" id="demo-button" type="button"><span data-i18n="loadDemo">Load example</span></button></div>
-    </section>
-    <p class="status-message" id="app-status" role="status" aria-live="polite"><span data-i18n="readyPrompt">Ready. Select a CDAT file or the synthetic example.</span></p>
     <div class="alert error" id="app-error" role="alert" hidden></div>
     <div class="alert warning" id="browser-warning" role="alert" hidden></div>
 
-    <div class="workspace-card" id="workspace-card" aria-busy="false">
-      <div class="capture-bar"><div><span class="caption-label"><span data-i18n="currentCapture">CURRENT CAPTURE</span></span><h2 id="capture-title"><span data-i18n="noCapture">No capture opened yet</span></h2><p id="capture-meta"><span data-i18n="capturePrompt">One ZIP is enough for an initial overview.</span></p></div><span class="capture-state" id="capture-state"><span data-i18n="ready">Ready</span></span></div>
-      <div class="capture-actions" id="capture-actions" hidden>
-        <button class="button secondary" id="capture-compare" type="button" data-i18n="captureCompare">Compare with another capture</button>
-        <button class="button primary" id="capture-updates" type="button" data-i18n="captureUpdates">Lenovo update check</button>
-      </div>
-      <div class="tablist" role="tablist" aria-label="Analysis sections" data-i18n-aria-label="analysisAreas">
+    <div class="workspace-card" id="workspace-card" aria-busy="false" hidden>
+      <div class="tablist" id="analysis-tabs" role="tablist" aria-label="Analysis sections" data-i18n-aria-label="analysisAreas">
         <button class="tab" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="panel-overview" tabindex="0" data-tab="overview"><span data-i18n="overview">Overview</span></button>
         <button class="tab" id="tab-drivers" type="button" role="tab" aria-selected="false" aria-controls="panel-drivers" tabindex="-1" data-tab="drivers"><span data-i18n="drivers">Drivers</span><span class="tab-count" id="driver-tab-count">0</span></button>
         <button class="tab" id="tab-files" type="button" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-tab="files"><span data-i18n="files">Files</span><span class="tab-count" id="file-tab-count">0</span></button>
         <button class="tab" id="tab-comparison" type="button" role="tab" aria-selected="false" aria-controls="panel-comparison" tabindex="-1" data-tab="comparison"><span data-i18n="comparison">Comparison</span></button>
-        <button class="tab" id="tab-lenovo" type="button" role="tab" aria-selected="false" aria-controls="panel-lenovo" tabindex="-1" data-tab="lenovo"><span data-i18n="catalog">Lenovo catalog</span></button>
+        <button class="tab" id="tab-lenovo" type="button" role="tab" aria-selected="false" aria-controls="panel-lenovo" tabindex="-1" data-tab="lenovo"><span data-i18n="updateTab">Lenovo updates</span></button>
       </div>
 
       <section class="tab-panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
-        <div id="overview-empty" class="empty-state"><div class="empty-glyph" aria-hidden="true">▤</div><h3><span data-i18n="emptyHeading">Your device capture in one place.</span></h3><p><span data-i18n="emptyCopy">Import a capture to see its model, BIOS, driver versions and data coverage.</span></p><p class="subtle"><span data-i18n="emptyDemo">Use “Load example” to explore the view without real device data.</span></p></div>
         <div id="overview-content" hidden>
           <div class="section-heading"><div><h3><span data-i18n="devicePlatform">Device &amp; platform</span></h3><p><span data-i18n="deviceDescription">Values from the capture. Open the source to inspect the evidence.</span></p></div></div>
           <dl class="device-grid" id="device-grid"></dl>
@@ -107,38 +108,41 @@
       </section>
 
       <section class="tab-panel" id="panel-lenovo" role="tabpanel" aria-labelledby="tab-lenovo" tabindex="0" hidden>
-        <section class="update-check-section" aria-labelledby="update-heading">
-          <div class="section-heading"><div><h3 id="update-heading" data-i18n="updateHeading">Check BIOS, WLAN and Bluetooth</h3><p data-i18n="updateDescription">Compare the current capture with Lenovo catalog packages using the recorded device and driver evidence.</p></div></div>
-          <p class="alert info" data-i18n="updateScope">This check covers BIOS, WLAN and Bluetooth in the retrieved catalog. A newer version and confirmed prerequisites are separate results; it is not a complete update assessment.</p>
-          <p id="update-capture-context" class="footnote"></p>
-          <div class="update-actions"><button class="button primary" id="update-check" type="button" disabled data-i18n="updateCheck">Check Lenovo updates</button></div>
-          <p class="footnote" data-i18n="updatePrivacy">Uses the capture’s machine type and Windows version. Only Lenovo document requests leave this computer; the capture and serial number stay local.</p>
-          <p class="status-message" id="update-status" role="status" aria-live="polite"></p>
+        <section class="update-check-section" id="update-check-section" aria-labelledby="update-heading" hidden>
+          <div class="section-heading update-heading">
+            <div>
+              <h2 id="update-heading" tabindex="-1" data-i18n="updateHeading">Lenovo update check</h2>
+              <p data-i18n="updateScope">Compare BIOS, WLAN and Bluetooth with the Lenovo catalog.</p>
+            </div>
+            <button class="button secondary" id="update-check" type="button" disabled data-i18n="updateCheck">Check Lenovo updates</button>
+          </div>
+          <p class="status-message visually-hidden" id="update-status" role="status" aria-live="polite"></p>
           <div class="alert error" id="update-error" role="alert" hidden></div>
           <div id="update-results" hidden></div>
         </section>
-        <div class="section-heading"><div><h3><span data-i18n="researchPackages">Research Lenovo packages</span></h3><p><span data-i18n="catalogDescription">The catalog request checks connectivity and lists packages offered for a machine type.</span></p></div></div>
-        <div class="alert info"><span data-i18n="catalogCaution">Browse catalog packages separately from the evidence check above. A catalog entry alone does not establish that a package applies to this device.</span></div>
-        <form id="catalog-form" class="catalog-form">
-          <label><span data-i18n="machineType">Machine type</span><input id="machine-type" name="machineType" type="text" inputmode="text" placeholder="e.g. 21MM" data-i18n-placeholder="machinePlaceholder" maxlength="4" pattern="[A-Za-z0-9]{4}" required autocomplete="off" spellcheck="false"></label>
-          <label><span data-i18n="os">Operating system</span><select id="catalog-os" name="os"><option value="Win11">Windows 11</option><option value="Win10">Windows 10</option></select></label>
-          <button class="button primary" id="catalog-button" type="submit"><span data-i18n="fetchCatalog">Fetch catalog</span><span aria-hidden="true">↗</span></button>
-        </form>
-        <p class="footnote"><span data-i18n="catalogPrivacy">Only the machine type and selected operating system are used for this request. The CDAT archive and serial number are not sent.</span></p>
-        <p class="status-message" id="catalog-status" role="status" aria-live="polite"><span data-i18n="catalogIdle">No catalog fetched yet.</span></p>
-        <div class="alert error" id="catalog-error" role="alert" hidden></div>
-        <div id="catalog-content" hidden>
-          <div class="catalog-meta" id="catalog-meta"></div>
-          <label class="search-field"><span class="visually-hidden"><span data-i18n="filterCatalog">Filter catalog packages by category or name</span></span><span aria-hidden="true">⌕</span><input id="catalog-search" type="search" placeholder="Search category or package name …" data-i18n-placeholder="catalogPlaceholder" autocomplete="off"></label>
-          <div class="table-wrap" tabindex="0" aria-label="Lenovo catalog" data-i18n-aria-label="catalog"><table><thead><tr><th scope="col"><span data-i18n="package">Package</span></th><th scope="col"><span data-i18n="category">Category</span></th><th scope="col"><span data-i18n="details">Details</span></th></tr></thead><tbody id="catalog-table"></tbody></table></div>
-          <p class="table-empty" id="catalog-empty" hidden><span data-i18n="noPackages">No packages match the filter.</span></p>
-        </div>
-        <section class="package-detail" id="package-detail" aria-labelledby="package-title" hidden>
-          <p class="eyebrow"><span data-i18n="packageMetadata">PACKAGE METADATA</span></p><h3 id="package-title"></h3><dl class="package-grid" id="package-fields"></dl><p id="package-description"></p><p id="package-notes" class="subtle"></p><div class="package-links" id="package-links"></div><p class="status-message" id="readme-status" role="status" aria-live="polite"></p>
-        </section>
+        <details class="manual-catalog" id="manual-catalog">
+          <summary data-i18n="researchPackages">Browse Lenovo catalog</summary>
+          <p class="subtle" data-i18n="catalogDescription">Find packages by machine type and Windows version.</p>
+          <form id="catalog-form" class="catalog-form">
+            <label><span data-i18n="machineType">Machine type</span><input id="machine-type" name="machineType" type="text" inputmode="text" placeholder="e.g. 21MM" data-i18n-placeholder="machinePlaceholder" maxlength="4" pattern="[A-Za-z0-9]{4}" required autocomplete="off" spellcheck="false"></label>
+            <label><span data-i18n="os">Operating system</span><select id="catalog-os" name="os"><option value="Win11">Windows 11</option><option value="Win10">Windows 10</option></select></label>
+            <button class="button primary" id="catalog-button" type="submit"><span data-i18n="fetchCatalog">Fetch catalog</span><span aria-hidden="true">↗</span></button>
+          </form>
+          <p class="footnote"><span data-i18n="catalogPrivacy">Only the machine type and selected operating system are used for this request. The CDAT archive and serial number are not sent.</span></p>
+          <p class="status-message" id="catalog-status" role="status" aria-live="polite"><span data-i18n="catalogIdle">No catalog fetched yet.</span></p>
+          <div class="alert error" id="catalog-error" role="alert" hidden></div>
+          <div id="catalog-content" hidden>
+            <div class="catalog-meta" id="catalog-meta"></div>
+            <label class="search-field"><span class="visually-hidden"><span data-i18n="filterCatalog">Filter catalog packages by category or name</span></span><span aria-hidden="true">⌕</span><input id="catalog-search" type="search" placeholder="Search category or package name …" data-i18n-placeholder="catalogPlaceholder" autocomplete="off"></label>
+            <div class="table-wrap" tabindex="0" aria-label="Lenovo catalog" data-i18n-aria-label="catalog"><table><thead><tr><th scope="col"><span data-i18n="package">Package</span></th><th scope="col"><span data-i18n="category">Category</span></th><th scope="col"><span data-i18n="details">Details</span></th></tr></thead><tbody id="catalog-table"></tbody></table></div>
+            <p class="table-empty" id="catalog-empty" hidden><span data-i18n="noPackages">No packages match the filter.</span></p>
+          </div>
+          <section class="package-detail" id="package-detail" aria-labelledby="package-title" hidden>
+            <p class="eyebrow"><span data-i18n="packageMetadata">PACKAGE METADATA</span></p><h3 id="package-title"></h3><dl class="package-grid" id="package-fields"></dl><p id="package-description"></p><p id="package-notes" class="subtle"></p><div class="package-links" id="package-links"></div><p class="status-message" id="readme-status" role="status" aria-live="polite"></p>
+          </section>
+        </details>
       </section>
     </div>
-    <footer class="page-footer"><span><span data-i18n="footer">LORE 2.0 · Technical preview</span></span><span><span data-i18n="footerScope">BIOS, WLAN &amp; Bluetooth catalog check · No driver installation</span></span></footer>
   </main>
 
   <dialog id="source-dialog" aria-labelledby="source-title"><div class="dialog-heading"><div><p class="eyebrow" id="source-kind"><span data-i18n="originalSource">ORIGINAL SOURCE</span></p><h2 id="source-title"></h2></div><button class="icon-button" id="source-close" type="button" aria-label="Close source view" data-i18n-aria-label="closeSource">×</button></div><p class="subtle" id="source-detail"></p><pre id="source-text" tabindex="0"></pre></dialog>

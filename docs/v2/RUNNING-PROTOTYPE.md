@@ -43,8 +43,8 @@ The UI is reachable only on the same machine via 127.0.0.1.
    normally. Inspect **Files**.
 3. Select a real CDAT ZIP. Check model, BIOS and expected driver rows against
    their source. Missing/failed sources must remain explicit.
-4. In **Lenovo catalog**, verify machine type and Windows version, then request
-   the catalog. Load one package's details and its readme.
+4. In **Lenovo updates**, expand **Browse Lenovo catalog**, verify the machine
+   type and Windows version and fetch the catalog. Open a package and its readme.
 5. Record any failed launch, import, browser behavior or network/proxy result.
    Catalog data alone is not an applicability/currentness verdict.
 
@@ -54,9 +54,9 @@ archive is sent by this prototype. File input is read-only.
 
 ## Compare two captures
 
-1. Open the first ZIP using **Choose ZIP**. This is capture A and remains the
+1. Open the first ZIP using **Open CDAT ZIP**. This is capture A and remains the
    source for Overview, Drivers, Files and the Lenovo lookup.
-2. Select **Compare with another capture** beneath the capture header (or open
+2. Select **Compare captures** in the capture header (or open
    **Comparison**) and select a second ZIP as capture B.
 3. Review BIOS, EC, ME firmware, Windows and driver records side by side.
    Use the result filter to inspect differences or unresolved rows, and search
@@ -70,13 +70,12 @@ in the browser. See [comparison scope and limitations](COMPARISON-PROTOTYPE.md).
 
 ## Check BIOS, WLAN and Bluetooth
 
-After opening capture A, select **Lenovo update check** below its header, then
-**Check Lenovo updates**. Compare **Installed version** and **Available Lenovo
-version**, then review the visible compatibility note. Open **Details** for
-explanations, source files and readme highlights, or **Readme** for the original
-text. Unmatched hardware, missing data and failed
-requests remain explicit. The check uses capture A's machine type and OS;
-capture B does not change it. See [scope and limitations](UPDATE-PROTOTYPE.md).
+After opening capture A, select **Check Lenovo updates** in the capture header
+to start the check. Compare **Installed version** with **Available Lenovo
+version** and review the compatibility note. **Details** contains explanations,
+sources and readme highlights. **Readme** opens the original text.
+The check uses capture A's machine type and Windows version.
+See [scope and limitations](UPDATE-PROTOTYPE.md).
 
 ## Language and text size
 
