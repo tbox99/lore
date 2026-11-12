@@ -7,7 +7,8 @@ It does not alter execution policy, certificate validation, firewall or URL ACLs
 [CmdletBinding()]
 param(
     [ValidateRange(1024, 65535)][int]$Port = 8765,
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [switch]$ProxyUseDefaultCredentials
 )
 
 Set-StrictMode -Version Latest
@@ -29,6 +30,13 @@ $Utf8 = New-Object System.Text.UTF8Encoding($false)
 $HttpHandler = New-Object System.Net.Http.HttpClientHandler
 $HttpHandler.AllowAutoRedirect = $false
 # The default handler retains the system proxy and normal TLS certificate checks.
+if ($ProxyUseDefaultCredentials) {
+    if ($null -eq $HttpHandler.PSObject.Properties['DefaultProxyCredentials']) {
+        throw 'Windows proxy sign-in requires a runtime with HttpClientHandler.DefaultProxyCredentials.'
+    }
+    # Scope the Windows sign-in to the system proxy used by this host.
+    $HttpHandler.DefaultProxyCredentials = [Net.CredentialCache]::DefaultCredentials
+}
 $Http = New-Object System.Net.Http.HttpClient($HttpHandler)
 $Http.Timeout = [TimeSpan]::FromSeconds(20)
 
@@ -65,6 +73,22 @@ function Test-LenovoPath {
         $Path -cmatch '\A(?:/catalog/[A-Za-z0-9]{4}_Win(?:10|11)\.xml|/pccbbs/mobiles/[A-Za-z0-9_.-]+\.(?:xml|txt|html))\z')
 }
 
+function Throw-LenovoNetworkError {
+    param([Exception]$Exception, [bool]$TimedOut, [string]$Phase)
+    for ($Cause = $Exception; $null -ne $Cause; $Cause = $Cause.InnerException) {
+        if ($Cause -is [Net.WebException] -and $Cause.Response -is [Net.HttpWebResponse]) {
+            if ([int]$Cause.Response.StatusCode -eq 407) {
+                $Cause.Response.Dispose()
+                Throw-TransportError 'The Windows proxy requires authentication (HTTP 407).'
+            }
+        }
+    }
+    if ($TimedOut) {
+        Throw-TransportError "The Lenovo request timed out while $Phase." 504
+    }
+    Throw-TransportError 'Windows could not complete the Lenovo request. Check the connection, proxy and certificates.'
+}
+
 function Get-LenovoText {
     param([string]$Path)
     if (-not (Test-LenovoPath $Path)) {
@@ -77,12 +101,16 @@ function Get-LenovoText {
     $Response = $null
     $InputStream = $null
     $BufferStream = New-Object IO.MemoryStream
+    $Phase = 'waiting for the response headers'
     try {
         [void]$Request.Headers.TryAddWithoutValidation('User-Agent', 'LORE-M0/2.0 (local diagnostic metadata viewer)')
         [void]$Request.Headers.TryAddWithoutValidation('Accept', 'application/xml,text/plain,text/html;q=0.9,*/*;q=0.1')
         [void]$Request.Headers.TryAddWithoutValidation('Accept-Encoding', 'identity')
         $Response = $Http.SendAsync($Request, [Net.Http.HttpCompletionOption]::ResponseHeadersRead, $Cancellation.Token).GetAwaiter().GetResult()
         $Code = [int]$Response.StatusCode
+        if ($Code -eq 407) {
+            Throw-TransportError 'The Windows proxy requires authentication (HTTP 407).'
+        }
         if ($Code -ge 300 -and $Code -lt 400) {
             Throw-TransportError 'Lenovo returned a redirect; it was not followed.'
         }
@@ -94,6 +122,7 @@ function Get-LenovoText {
         if ($null -ne $Length -and ($Length -lt 0 -or $Length -gt $MaxUpstreamBytes)) {
             Throw-TransportError 'The Lenovo response is too large.'
         }
+        $Phase = 'reading the response body'
         $InputStream = $Response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
         $Buffer = New-Object byte[] 65536
         while ($true) {
@@ -116,8 +145,7 @@ function Get-LenovoText {
         }
     } catch {
         if ($_.Exception.Data.Contains('Status')) { throw }
-        if ($Cancellation.IsCancellationRequested) { Throw-TransportError 'The Lenovo request timed out.' 504 }
-        Throw-TransportError 'Lenovo is unreachable. Check the connection, proxy and certificates.'
+        Throw-LenovoNetworkError $_.Exception $Cancellation.IsCancellationRequested $Phase
     } finally {
         if ($null -ne $InputStream) { $InputStream.Dispose() }
         if ($null -ne $Response) { $Response.Dispose() }
@@ -223,6 +251,7 @@ $Listener = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, $Port)
 try {
     $Listener.Start()
     Write-Host "LORE M0: $BaseUrl/"
+    if ($ProxyUseDefaultCredentials) { Write-Host 'Windows sign-in enabled for the configured system proxy.' }
     Write-Host 'Stop: Ctrl+C. CDAT files stay in the browser.'
     if (-not $NoBrowser) { Start-Process "$BaseUrl/" }
     while ($true) {

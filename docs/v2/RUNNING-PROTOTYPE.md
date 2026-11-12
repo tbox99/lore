@@ -19,6 +19,18 @@ The script targets existing Windows PowerShell 5.1 and opens the normal browser.
 It listens only at http://127.0.0.1:8765/. Keep the terminal open; Ctrl+C stops it.
 For a different free port use `-Port 8766`; `-NoBrowser` suppresses browser launch.
 
+If the configured Windows proxy requires integrated Windows authentication,
+start LORE with the Windows proxy sign-in option:
+
+```powershell
+powershell.exe -NoProfile -File .\prototype\Start-Lore.ps1 -ProxyUseDefaultCredentials
+```
+
+This supplies the current Windows credentials to the configured system proxy
+when it requests authentication. The option applies to the LORE process.
+HTTP 407 identifies a proxy authentication response. Timeout messages say
+whether LORE was waiting for response headers or reading the document.
+
 No execution-policy, certificate or security setting is changed. If corporate
 policy blocks the script, record the exact message as a platform-test result;
 the documented command intentionally contains no bypass option.
