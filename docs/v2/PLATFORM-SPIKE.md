@@ -1,6 +1,6 @@
 # M0: platform experiment
 
-Status: IMPLEMENTED, platform acceptance PARTIAL. Evidence recorded 2026-11-11.
+Status: IMPLEMENTED, platform acceptance PARTIAL. Evidence updated 2026-11-12.
 
 ## Implemented candidate
 
@@ -42,11 +42,11 @@ corporate compatibility. The UI/transport arrangement remains experimental.
 | Owner's Windows UI startup and real archive import | PASS, user-observed | Screenshot supplied on 2026-11-11 shows 170 files, 244 driver rows and four source-quality notices. Exact browser, elevation and proxy access were not established by this evidence. Screenshot and device identifiers are not committed. |
 | Corporate Windows proxy access and complete manual interaction | NOT RUN | Requires the remaining checks in the intended corporate environment. |
 | Native Windows Chromium browser with sandbox enabled | PASS | 29 recorded checks: previous import/comparison/preferences checks plus six new Lenovo-check groups covering explicit requests and direct navigation, component versions versus package versions, original CDAT/readme evidence, locale/scale retention, malformed metadata/missing-readme recovery, A/B binding and stale-result cancellation, and missing radio identity. No page/console errors or unexpected external requests; host cleanup passed. Lenovo responses are controlled synthetic fixtures. |
-| Windows readable-layout validation | PASS, provisional presentation | Update cards now emphasize Installed version / Available Lenovo version and the version result, with compatibility visible separately. Reasons, grouped source files and package evidence are collapsed under Details. Screenshots inspected at 1440 px English/standard and 384 px German/extra-large. Native checks verify exact EN/DE labels, keyboard disclosure, source access, open-state retention across language changes and no page overflow. Narrow comparison tables still require horizontal scrolling; final presentation remains open. |
+| Windows readable-layout validation | PASS, provisional presentation | The capture toolbar starts the Lenovo check directly. Native tests cover the file picker, passive tab navigation, manual catalog state, EN/DE labels, keyboard disclosure and source access. Screenshots at 1440 px English/standard show three update cards in one row. At 384 px German/extra-large the tabs wrap and the Bluetooth version stays on one line. Comparison tables scroll within the panel at narrow widths. |
 | Linux native browser interaction | NOT RUN | Host/core tests and DOM emulation pass, but neither establishes actual Linux browser behavior. |
 
-Verified code revision: `ce866f0631b1bd51a9702899c05625b2d27e5998`.
-[Successful CI run and synthetic browser evidence](https://github.com/tbox99/lore/actions/runs/43028082734).
+Verified code revision: `102872c9c0e5631b66d711a1bec70f401436058d`.
+[Successful CI run and synthetic browser evidence](https://github.com/tbox99/lore/actions/runs/43184652249).
 The native browser test uses controlled Lenovo responses; the separate live
 Lenovo checks above ran on OpenCode. Corporate Windows policy/proxy behavior
 still requires the user's environment.
