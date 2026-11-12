@@ -599,6 +599,7 @@ try {
   await runUpdateCheck('#capture-updates');
   assert.equal(await page.locator('#tab-lenovo').getAttribute('aria-selected'), 'true');
   assert.equal(await page.locator('#update-heading').evaluate(heading => document.activeElement === heading), true);
+  assert.equal(await page.locator('#capture-updates').isVisible(), false);
   assert.equal(await page.locator('#update-results .update-card').count(), 3);
   const updateRow = kind => page.locator(`#update-results .update-card[data-kind="${kind}"]`);
   const biosUpdate = updateRow('bios'), wlanUpdate = updateRow('wlan'), btUpdate = updateRow('bluetooth');
@@ -671,6 +672,12 @@ try {
   }
   await page.setViewportSize({ width: 384, height: 900 });
   await noPageOverflow('384 px, extra-large Lenovo assessment');
+  const versionLines = await btUpdate.locator('[data-update-field="installed"] dd').evaluate(version => {
+    const range = document.createRange();
+    range.selectNodeContents(version);
+    return range.getClientRects().length;
+  });
+  assert.equal(versionLines, 1, 'The installed Bluetooth version stays on one line');
   await page.screenshot({ path: path.join(artifacts, 'synthetic-updates-mobile-de-extra-large.png'), fullPage: true });
   await page.locator('#language-select').selectOption('en');
   await page.locator('#font-size-select').selectOption('standard');

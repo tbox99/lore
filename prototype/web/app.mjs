@@ -117,6 +117,7 @@ function activateTab(name, focus = false) {
     tab.tabIndex = selected ? 0 : -1;
     $(`panel-${tab.dataset.tab}`).hidden = !selected;
   });
+  $('capture-updates').hidden = name === 'lenovo';
   renderWorkspaceVisibility();
   if (focus) $(`tab-${name}`).focus();
 }
